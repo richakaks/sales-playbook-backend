@@ -1,9 +1,12 @@
 # Sales Playbook Capture Studio — backend
 
-Small Express server with two jobs:
+Small Express server with three jobs:
 
-1. Holds the GLM (Z.ai) API key server-side and generates adaptive follow-up questions on request — so the key never has to live inside the HTML file that gets shared around.
-2. Stores completed interview sessions in one place, so answers are visible across employees instead of stuck in each person's browser.
+1. **Serves the interview tool itself** (`public/index.html`) as a normal webpage — employees get a link to click, not a file to download and "open with" a browser.
+2. Holds the GLM (Z.ai) API key server-side and generates adaptive follow-up questions on request — so the key never has to live inside the HTML file.
+3. Stores completed interview sessions in one place, so answers are visible across employees instead of stuck in each person's browser.
+
+Because the app is served *by* this backend, it auto-detects its own backend URL — employees using the hosted link don't need to touch Settings at all. (If you instead download `public/index.html` and open it locally as a file, it won't auto-detect anything — that's expected, and Settings → Backend URL still works manually in that case.)
 
 Storage is a plain JSON file (`data/sessions.json`), not a real database. That's a deliberate simplification to get something working on a free host today — see the caveat below, and the upgrade path once this is worth making permanent.
 
@@ -34,13 +37,25 @@ Render's free web services don't need a credit card, which is why this is set up
 
 4. **Set environment variables** in Render's dashboard (Environment tab) — do not commit these to GitHub:
    - `GLM_API_KEY` — the key First gave you
-   - `GLM_MODEL` — confirm the exact model id with First (currently defaulted to `glm-4.6` as a placeholder)
-   - `GLM_BASE_URL` — `https://api.z.ai/v1/chat/completions` (only change this if First says otherwise)
+   - `GLM_MODEL` — `glm-4.6` is confirmed valid; can be changed to any model in Z.ai's current lineup
+   - `GLM_BASE_URL` — `https://api.z.ai/api/paas/v4/chat/completions` (confirmed correct against Z.ai's own API docs)
    - `ADMIN_TOKEN` — make up any password-like string yourself; this protects the endpoint that lists everyone's answers
 
-5. **Deploy.** Render gives you a URL like `https://sales-playbook-backend.onrender.com`.
+5. **Deploy.** Render gives you a URL like `https://sales-playbook-backend.onrender.com` — that URL is now the whole app. Send that link directly to employees; nothing to download or unzip.
 
-6. **Paste that URL into the app's Settings screen** (Backend URL field), and paste the same `ADMIN_TOKEN` value into the Admin Token field so "Team Results" can load. Turn on "Use adaptive questions" once First confirms the model id is correct.
+6. **For Team Results** (Max seeing everyone's answers): open the app at that URL, go to Settings, and paste the `ADMIN_TOKEN` value into the Admin Token field — Backend URL fills itself in automatically since the page is served by the same backend.
+
+7. Turn on "Use adaptive questions" once GLM account billing is resolved (currently blocked — see `../ADAPTIVE_QUESTIONS_SPEC.md`).
+
+### Updating the deployed app later
+
+If you edit `sales_playbook_capture_studio.html` at the project root, copy it into `sales-playbook-backend/public/index.html` before committing, then push — Render redeploys automatically on every push to `main`:
+```
+cp ../sales_playbook_capture_studio.html public/index.html
+git add .
+git commit -m "Update frontend"
+git push
+```
 
 ## Testing locally before deploying
 

@@ -1,13 +1,16 @@
 /**
  * Sales Playbook Capture Studio — backend
  *
- * Two jobs, both stemming from the same gap: a static HTML file has no safe place to hold
- * a real API key and no way to centralize what employees answer.
+ * Three jobs, all stemming from the same gap: a static HTML file has no safe place to
+ * hold a real API key, no way to centralize what employees answer, and (as an emailed
+ * attachment) is awkward to share and easy for mail clients to mangle.
  *
- *   1. POST /api/generate-question — proxies adaptive follow-up question generation to
+ *   1. Serves the frontend itself (public/index.html) as a normal webpage, so employees
+ *      get a clickable link instead of a file to download and "open with" a browser.
+ *   2. POST /api/generate-question — proxies adaptive follow-up question generation to
  *      GLM (Z.ai). The key lives only here, in an environment variable, never in the
  *      frontend. See ADAPTIVE_QUESTIONS_SPEC.md for the full prompt design.
- *   2. /api/sessions — saves and lists completed interview sessions, so answers from
+ *   3. /api/sessions — saves and lists completed interview sessions, so answers from
  *      every employee land in one place instead of being stuck in each person's browser.
  *
  * Storage is a plain JSON file (data/sessions.json), not a real database. That's a
@@ -25,11 +28,12 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const GLM_API_KEY = process.env.GLM_API_KEY || '';
 const GLM_MODEL = process.env.GLM_MODEL || 'glm-4.6'; // placeholder — confirm exact model id with First
-const GLM_BASE_URL = process.env.GLM_BASE_URL || 'https://api.z.ai/v1/chat/completions';
+const GLM_BASE_URL = process.env.GLM_BASE_URL || 'https://api.z.ai/api/paas/v4/chat/completions';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -108,7 +112,7 @@ app.delete('/api/sessions/:id', requireAdmin, (req, res) => {
 /* ---------------------------------------------------------------------- */
 /* Adaptive question generation (proxies to GLM, key never leaves server) */
 /* ---------------------------------------------------------------------- */
-const SYSTEM_PROMPT = `You are an interview assistant helping a company capture how its sales team actually works, so it can be turned into a written sales playbook.
+const INTERVIEW_SYSTEM_PROMPT = `You are an interview assistant helping a company capture how its sales team actually works, so it can be turned into a written sales playbook.
 
 The persona being interviewed: {{PERSONA_LABEL}} — {{PERSONA_DESCRIPTION}}
 
@@ -133,8 +137,31 @@ Respond with ONLY a JSON object, no markdown fences, no extra commentary, matchi
 
 If every stage already has reasonable coverage in the transcript, respond with exactly: {"done": true}`;
 
-function buildSystemPrompt(persona, stages) {
-  return SYSTEM_PROMPT
+const SCENARIO_SYSTEM_PROMPT = `You are an interview assistant helping a company understand how its sales team would actually behave under pressure, so it can be turned into a written playbook of judgment calls — not just routine steps.
+
+The persona: {{PERSONA_LABEL}} — {{PERSONA_DESCRIPTION}}
+
+Background on the real process this person works within, for context only (don't ask about these stages directly — that's covered elsewhere):
+{{STAGES}}
+
+You will be given the transcript of hypothetical scenarios already presented in this session and how the person said they'd respond. Your job is to generate ONE new hypothetical situation — realistic, specific, and different in kind from the scenarios already covered (e.g. a pricing conflict, a knowledge gap, an angry customer, an ownership dispute, a stock shortage under deadline pressure). It should put real pressure on a judgment call, not just ask about routine steps.
+
+Respond with ONLY a JSON object, no markdown fences, no extra commentary, matching exactly this shape:
+{
+  "stage": "<short label for the type of pressure this scenario tests, e.g. 'Pricing Pressure'>",
+  "situation": "<2-3 sentences setting up a realistic, specific hypothetical situation>",
+  "prompt": "<a short follow-up question, e.g. 'What do you actually do — in the moment, and after?'>",
+  "chips": ["<3 to 6 short answer-option chips relevant to this specific scenario>"],
+  "checklist": [{"label": "<short first-person checklist statement>", "kw": ["<keyword1>", "<keyword2>"]}],
+  "example": "<a realistic 2-3 sentence example answer, written in first person>",
+  "hint": "<a short question to help someone who's stuck answering>"
+}
+
+If a good spread of distinct pressure-test types has already been covered in the transcript, respond with exactly: {"done": true}`;
+
+function buildSystemPrompt(persona, stages, phase) {
+  const template = phase === 'scenario' ? SCENARIO_SYSTEM_PROMPT : INTERVIEW_SYSTEM_PROMPT;
+  return template
     .replace('{{PERSONA_LABEL}}', persona?.label || 'Salesperson')
     .replace('{{PERSONA_DESCRIPTION}}', persona?.description || '')
     .replace('{{STAGES}}', (stages || []).map((s, i) => `${i + 1}. ${s}`).join('\n'));
@@ -169,11 +196,11 @@ app.post('/api/generate-question', async (req, res) => {
   if (!GLM_API_KEY) {
     return res.status(500).json({ ok: false, error: 'GLM_API_KEY is not configured on the server.' });
   }
-  const { persona, stages, transcriptSoFar } = req.body || {};
+  const { persona, stages, transcriptSoFar, phase } = req.body || {};
 
   const messages = [
-    { role: 'system', content: buildSystemPrompt(persona, stages) },
-    { role: 'user', content: `Transcript so far:\n\n${transcriptToText(transcriptSoFar)}\n\nGenerate the next question now.` },
+    { role: 'system', content: buildSystemPrompt(persona, stages, phase) },
+    { role: 'user', content: `Transcript so far:\n\n${transcriptToText(transcriptSoFar)}\n\nGenerate the next ${phase === 'scenario' ? 'hypothetical scenario' : 'question'} now.` },
   ];
 
   try {
@@ -209,6 +236,10 @@ app.post('/api/generate-question', async (req, res) => {
     if (!parsed.prompt) {
       return res.status(502).json({ ok: false, error: 'Model response was missing a "prompt" field.', raw: parsed });
     }
+    if (phase === 'scenario' && !parsed.situation) {
+      return res.status(502).json({ ok: false, error: 'Scenario response was missing a "situation" field.', raw: parsed });
+    }
+    parsed.type = phase === 'scenario' ? 'scenario' : 'interview';
 
     res.json({ ok: true, question: parsed });
   } catch (e) {

@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Playbook Capture Studio</title>
+<style>
+  :root{
+    --indigo:#4F46E5; --indigo-dark:#4338CA; --indigo-light:#EEF2FF;
+    --teal:#0D9488; --teal-light:#ECFDF9; --teal-dark:#0F766E;
+    --text:#1E293B; --text-muted:#64748B; --text-faint:#94A3B8;
+    --bg:#F7F8FC; --card:#FFFFFF; --border:#E4E7EF;
+    --danger:#DC2626; --danger-light:#FEF2F2;
+    --radius:14px; --radius-sm:10px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;}
+  #app{min-height:100vh;display:flex;flex-direction:column;}
+
+  /* ---------- header ---------- */
+  header.topbar{display:flex;align-items:center;justify-content:space-between;
+    padding:12px 24px;background:var(--card);border-bottom:1px solid var(--border);gap:16px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{width:32px;height:32px;border-radius:9px;flex:none;
+    background:linear-gradient(135deg,var(--teal) 0%,var(--indigo) 100%);position:relative;}
+  .brand-mark::after{content:"";position:absolute;inset:8px;border-radius:5px;background:var(--card);opacity:.9;}
+  .brand-name{font-weight:700;font-size:16px;letter-spacing:-.01em;}
+  .mode-pill{display:flex;align-items:center;gap:6px;background:var(--indigo-light);color:var(--indigo);
+    font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:999px;}
+  .mode-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--indigo);}
+  .topbar-right{display:flex;align-items:center;gap:18px;}
+  .privacy-note{display:flex;align-items:center;gap:6px;color:var(--text-muted);font-size:13px;}
+  .avatar{width:32px;height:32px;border-radius:50%;background:#1E293B;color:#fff;display:flex;
+    align-items:center;justify-content:center;font-size:12.5px;font-weight:700;}
+
+  /* ---------- layout ---------- */
+  .layout{flex:1;display:flex;width:100%;max-width:1440px;margin:0 auto;gap:24px;padding:24px;align-items:flex-start;}
+  nav.sidenav{width:200px;flex:none;display:flex;flex-direction:column;gap:2px;}
+  nav.sidenav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+    color:var(--text-muted);text-decoration:none;font-size:14px;font-weight:500;cursor:pointer;}
+  nav.sidenav a svg{flex:none;opacity:.8;}
+  nav.sidenav a:hover{background:#F1F2F8;}
+  nav.sidenav a.active{background:var(--indigo-light);color:var(--indigo);font-weight:700;}
+  nav.sidenav a.active svg{opacity:1;}
+  .nav-hint{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px;font-size:12.5px;color:var(--text-muted);line-height:1.5;display:flex;gap:10px;}
+  .nav-hint svg{flex:none;color:var(--teal);margin-top:1px;}
+
+  main#main{flex:1;min-width:0;display:flex;flex-direction:column;gap:18px;}
+  aside.sideinfo{width:300px;flex:none;display:flex;flex-direction:column;gap:16px;}
+
+  /* ---------- cards ---------- */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:20px 22px;}
+  .card h3{margin:0 0 12px 0;font-size:14.5px;display:flex;align-items:center;gap:8px;}
+  .info-item{display:flex;gap:10px;margin-bottom:14px;}
+  .info-item:last-child{margin-bottom:0;}
+  .info-ic{width:30px;height:30px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center;}
+  .info-ic.a{background:#ECFDF9;color:var(--teal-dark);}
+  .info-ic.b{background:#EEF2FF;color:var(--indigo);}
+  .info-ic.c{background:#F5F3FF;color:#7C3AED;}
+  .info-title{font-size:13.5px;font-weight:700;margin-bottom:2px;}
+  .info-sub{font-size:12.5px;color:var(--text-muted);line-height:1.4;}
+
+  .radio-row{display:flex;gap:10px;padding:9px 4px;border-radius:9px;cursor:pointer;align-items:flex-start;}
+  .radio-row:hover{background:#F7F8FC;}
+  .radio-row input{margin-top:3px;accent-color:var(--indigo);}
+  .radio-title{font-size:13.5px;font-weight:600;}
+  .radio-sub{font-size:12px;color:var(--text-muted);}
+  .footnote{font-size:12px;color:var(--text-faint);display:flex;align-items:center;gap:6px;padding:2px 4px;}
+
+  /* ---------- progress ---------- */
+  .progress-wrap{display:flex;align-items:center;justify-content:space-between;gap:14px;}
+  .progress-label{font-size:12.5px;font-weight:600;color:var(--text-muted);white-space:nowrap;}
+  .progress-track{flex:1;height:6px;border-radius:99px;background:#E9EAF3;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--indigo));border-radius:99px;transition:width .3s ease;}
+  .phase-pill{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+    padding:3px 9px;border-radius:99px;background:var(--teal-light);color:var(--teal-dark);white-space:nowrap;}
+
+  /* ---------- question card ---------- */
+  .q-banner{display:flex;gap:12px;}
+  .ai-avatar{width:36px;height:36px;border-radius:50%;background:var(--indigo-light);color:var(--indigo);
+    display:flex;align-items:center;justify-content:center;flex:none;}
+  .q-banner-text .q-label{font-size:12px;font-weight:700;color:var(--indigo);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
+  .q-banner-text .q-prompt{font-size:16.5px;font-weight:700;line-height:1.4;margin:0 0 4px;}
+  .q-banner-text .q-situation{font-size:14px;color:var(--text-muted);line-height:1.5;background:#FBF8F3;border:1px solid #F1E7D2;
+    padding:9px 12px;border-radius:9px;margin:6px 0 8px;}
+  .q-banner-text .q-sub{font-size:13px;color:var(--text-muted);}
+
+  .step{margin-top:20px;}
+  .step-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .step-num{width:24px;height:24px;border-radius:50%;background:var(--teal-dark);color:#fff;font-size:12px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;flex:none;}
+  .step-title{font-size:13.5px;font-weight:700;color:var(--teal-dark);}
+
+  .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{border:1.5px solid var(--border);background:#fff;color:var(--text);font-size:13px;font-weight:600;
+    padding:7px 12px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:7px;user-select:none;}
+  .chip:hover{border-color:#C7CBE0;}
+  .chip.selected{border-color:var(--teal);background:var(--teal-light);color:var(--teal-dark);}
+  .chip .badge{width:15px;height:15px;border-radius:50%;background:var(--teal);color:#fff;display:none;
+    align-items:center;justify-content:center;flex:none;}
+  .chip.selected .badge{display:flex;}
+  .chip-other-input{border:1.5px solid var(--indigo);border-radius:9px;padding:6px 10px;font-size:13px;width:150px;outline:none;}
+
+  .checklist-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;}
+  @media(max-width:720px){.checklist-grid{grid-template-columns:1fr;}}
+  .check-row{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;line-height:1.4;cursor:pointer;padding:3px 0;}
+  .check-row input{margin-top:2px;width:16px;height:16px;accent-color:var(--teal-dark);flex:none;}
+  .check-row.auto span.tag{font-size:10.5px;color:var(--teal-dark);background:var(--teal-light);border-radius:5px;padding:1px 5px;margin-left:6px;font-weight:700;}
+
+  textarea.freeform{width:100%;min-height:110px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+    padding:12px 14px;font-size:14px;line-height:1.55;font-family:inherit;resize:vertical;outline:none;color:var(--text);}
+  textarea.freeform:focus{border-color:var(--indigo);}
+  .charcount{text-align:right;font-size:11.5px;color:var(--text-faint);margin-top:4px;}
+  .helper-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .helper-btn{display:flex;align-items:center;gap:6px;border:1.5px solid var(--teal);background:#fff;color:var(--teal-dark);
+    font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:8px;cursor:pointer;}
+  .helper-btn:hover{background:var(--teal-light);}
+  .hint-box{margin-top:10px;background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;font-size:13px;
+    padding:10px 12px;border-radius:9px;line-height:1.5;}
+
+  .summary-box{margin-top:20px;background:var(--indigo-light);border:1px solid #D9DEFB;border-radius:var(--radius-sm);
+    padding:14px 16px;}
+  .summary-head{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--indigo);margin-bottom:6px;}
+  .summary-text{font-size:14px;line-height:1.55;color:#312E81;}
+  .summary-text[contenteditable="true"]{outline:2px dashed var(--indigo);padding:4px 6px;border-radius:6px;background:#fff;}
+
+  .action-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;}
+  .btn{border:none;border-radius:9px;font-size:13.5px;font-weight:700;padding:10px 16px;cursor:pointer;
+    display:flex;align-items:center;gap:7px;}
+  .btn-primary{background:var(--indigo);color:#fff;}
+  .btn-primary:hover{background:var(--indigo-dark);}
+  .btn-primary:disabled{background:#C7C9E8;cursor:not-allowed;}
+  .btn-outline{background:#fff;border:1.5px solid var(--border);color:var(--text);}
+  .btn-outline:hover{border-color:#C7CBE0;}
+  .btn-ghost{background:transparent;color:var(--text-muted);}
+  .btn-ghost:hover{color:var(--text);}
+  .btn-danger{background:var(--danger-light);color:var(--danger);}
+  .btn-danger:hover{background:#FEE2E2;}
+  .warn-inline{font-size:12px;color:var(--danger);margin-top:6px;}
+
+  /* transition / complete screens */
+  .center-card{text-align:center;padding:44px 30px;}
+  .center-card .big-ic{width:56px;height:56px;border-radius:50%;background:var(--teal-light);color:var(--teal-dark);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+  .center-card h2{margin:0 0 8px;font-size:19px;}
+  .center-card p{margin:0 auto 20px;max-width:440px;color:var(--text-muted);font-size:14px;line-height:1.5;}
+  .center-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+
+  .stat-row{display:flex;gap:14px;justify-content:center;margin:18px 0;flex-wrap:wrap;}
+  .stat{background:#F7F8FC;border:1px solid var(--border);border-radius:12px;padding:12px 20px;min-width:110px;}
+  .stat .num{font-size:22px;font-weight:800;color:var(--indigo);}
+  .stat .lbl{font-size:11.5px;color:var(--text-muted);font-weight:600;}
+
+  .recap-section{text-align:left;margin-top:22px;}
+  .recap-section h4{font-size:13px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);margin:22px 0 10px;}
+  .recap-item{border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:8px;font-size:13.5px;line-height:1.5;}
+  .recap-item .recap-q{font-weight:700;margin-bottom:3px;}
+  .recap-item .recap-s{color:var(--text-muted);}
+  .recap-checklist{display:flex;flex-wrap:wrap;gap:8px;}
+  .recap-chip{background:var(--teal-light);color:var(--teal-dark);font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:8px;}
+
+  /* other views */
+  .page-title{font-size:19px;font-weight:800;margin:0 0 2px;}
+  .page-sub{font-size:13.5px;color:var(--text-muted);margin:0 0 6px;}
+  .session-card{border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px;background:#fff;}
+  .session-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .session-date{font-weight:700;font-size:14px;}
+  .session-meta{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+  .badge-privacy{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#F1F2F8;color:var(--text-muted);white-space:nowrap;}
+  .session-actions{display:flex;gap:8px;margin-top:10px;}
+  .session-detail{margin-top:12px;border-top:1px solid var(--border);padding-top:12px;}
+  .empty-state{text-align:center;padding:50px 20px;color:var(--text-muted);}
+  .empty-state svg{margin-bottom:10px;color:var(--text-faint);}
+
+  .settings-row{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;max-width:420px;}
+  .settings-row label{font-size:13px;font-weight:700;}
+  .settings-row input[type=text]{border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-size:14px;outline:none;}
+  .settings-row input[type=text]:focus{border-color:var(--indigo);}
+  .settings-row select{border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-size:14px;background:#fff;}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1E293B;color:#fff;
+    font-size:13px;font-weight:600;padding:10px 18px;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.2);
+    opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;z-index:50;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+
+  .draft-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#FFFBEB;
+    border:1px solid #FDE68A;border-radius:12px;padding:12px 16px;flex-wrap:wrap;}
+  .draft-banner .txt{font-size:13.5px;color:#92400E;}
+  .draft-banner .txt b{display:block;font-size:14px;margin-bottom:2px;}
+
+  @media(max-width:980px){
+    .layout{flex-direction:column;}
+    nav.sidenav{width:100%;flex-direction:row;flex-wrap:wrap;}
+    aside.sideinfo{width:100%;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-name">Sales Playbook Capture Studio</div>
+      <div class="mode-pill" id="modePill"><span class="dot"></span><span>Interview Mode</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="privacy-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span>Private until you review and share</span>
+      </div>
+      <div class="avatar" id="avatarBadge">R</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidenav" id="sidenav"></nav>
+    <main id="main"></main>
+    <aside class="sideinfo" id="sideinfo"></aside>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================= ICONS ============================= */
+const ICON = {
+  interview:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  sessions:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  knowledge:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  settings:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  sparkle:'<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.6L19.4 9.4 13.8 11.2 12 17l-1.8-5.8L4.6 9.4l5.6-1.8L12 2z"/></svg>',
+  sparkleSm:'<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.6L19.4 9.4 13.8 11.2 12 17l-1.8-5.8L4.6 9.4l5.6-1.8L12 2z"/></svg>',
+  check:'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+  checkLg:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+  example:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+  steps:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  mic:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>',
+  help:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  arrow:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>',
+  trash:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  download:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  lock:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  bulb:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>',
+};
+
+/* ============================= PERSONA & PROCESS BACKBONE =============================
+   Grounded in Sable's own diagnostic work (the Enrich end-to-end revenue journey and the
+   "Sales Knowledge" tacit-knowledge gap), not invented generically. This is what Max meant
+   by building around a specific persona first, with the interview structured against a real
+   process rather than a generic reused question set. */
+const PERSONA = {
+  id: 'salesperson',
+  label: 'Salesperson',
+  description: "Front-line sales rep who owns a lead from assignment through close and handoff.",
+};
+
+// Sable's documented end-to-end revenue journey. Kept here so both the scripted questions
+// below and the future adaptive engine stay anchored to real process stages instead of
+// wandering. See ADAPTIVE_QUESTIONS_SPEC.md for how this gets used once live model calls
+// are wired in.
+const REVENUE_JOURNEY_STAGES = [
+  "Demand Generation","Lead Intake","Qualification","Ownership Check","Sales Assignment",
+  "Conversation","Pre-Quotation / Quotation","Follow-up","Close / Lost","Sales Order",
+  "Fulfillment","Delivery Confirmation","Audit","Repeat Purchase / Marketplace Migration",
+];
+
+/* ============================= DATA ============================= */
+const SCENARIO_CHIPS = ["Escalate to manager","Offer an alternative","Buy time and research","Involve a colleague","Stay with the customer myself","Other"];
+const SCENARIO_CHECKLIST = [
+  {label:"I'm honest about what I don't know or can't do", kw:["honest","don't know","dont know","can't","cant","not sure","transparent","admit"]},
+  {label:"I loop in the right person", kw:["escalat","manager","colleague","involve","ask someone","bring in"]},
+  {label:"I follow up instead of leaving it hanging", kw:["follow up","get back","circle back","come back to","later that"]},
+  {label:"I don't overpromise", kw:["overpromise","promise","commit","guarantee","don't commit"]},
+];
+
+// Each question is tied to a real stage of the revenue journey above, with chips and a
+// checklist tailored to what's actually being decided at that stage — not a generic
+// reused set. Content is grounded in Sable's "Sales Knowledge" gap analysis: what
+// questions to ask different customer types, which model/spec to offer, what price range
+// to expect, whether the client is a contractor or end user, who to route to, and what
+// follow-up gets a response.
+//
+// This is a larger bank than any single session uses — each session randomly draws a
+// subset (see pickSessionQuestions below), so back-to-back employees don't get the exact
+// same 8 questions in the exact same order every time, even without adaptive mode on.
+// Every question carries a "family" tag used to spread the picked subset across distinct
+// topics rather than, say, landing on three pricing questions and none about follow-up.
+const INTERVIEW_BANK = [
+  {id:'lead-handoff', type:'interview', family:'First Contact', stage:'Sales Assignment → First Contact',
+    prompt:"Walk me through what you actually do in the first few minutes after a lead lands with you — whether it's handed off by admin or a customer messages you directly.",
+    chips:["Assigned by admin/traffic","Customer messaged me directly","Repeat customer reaching out","Referral from another sale","Picked up from a shared queue","Other"],
+    checklist:[
+      {label:"I check who this customer is before responding", kw:["check who","history","previous","past order","look them up","crm","system"]},
+      {label:"I confirm exactly what they need before offering anything", kw:["confirm what","clarify","ask what they need","what they're looking for"]},
+      {label:"I judge how urgent this is", kw:["urgent","how fast","priority","asap","rush"]},
+      {label:"I check for ownership conflicts before engaging", kw:["ownership","already talking to","someone else","duplicate","conflict"]},
+    ],
+    example:"If it's handed to me by admin, I check the notes they left and any order history before I say anything. If a customer messages me directly, I first confirm what they actually need and whether they've talked to someone else here before, so I'm not stepping on another sale.",
+    hint:"What's the very first thing you check before you even reply? How do you know if this is urgent or can wait?"},
+
+  {id:'customer-read', type:'interview', family:'Qualification', stage:'Conversation — Qualification',
+    prompt:"How do you figure out what kind of customer you're actually talking to — contractor, end user, project buyer — and how does that change what you say or offer?",
+    chips:["Contractor / trade buyer","End user / individual","Project or bidding client","Corporate / repeat account","Not sure yet — I ask directly","Other"],
+    checklist:[
+      {label:"I ask directly what they're using it for", kw:["ask what","ask them","what it's for","purpose","project"]},
+      {label:"I listen for signals instead of just asking", kw:["listen","tone","how they write","signal","tell from"]},
+      {label:"I change what I offer based on buyer type", kw:["different product","different option","depending on","offer differently"]},
+      {label:"I change my tone or pricing approach based on buyer type", kw:["tone","price differently","negotiate","formal","casual"]},
+    ],
+    example:"I ask what the products are for early on — a contractor doing a project talks differently than someone buying for their own home. If they mention quantities or a project name, I treat it as a project buyer and switch to talking specs and lead times instead of just price.",
+    hint:"What's the actual question or signal that tells you who you're dealing with? Does your pitch change once you know?"},
+
+  {id:'spec-match', type:'interview', family:'Product Fit', stage:'Conversation — Product Fit',
+    prompt:"Walk me through how you decide which specific product or model to recommend once you know what the customer needs.",
+    chips:["Matches stated specs exactly","Customer isn't sure of specs","Budget-driven substitution","Stock/availability driven","Based on similar past orders","Other"],
+    checklist:[
+      {label:"I ask clarifying technical questions before recommending", kw:["ask about","spec","technical","clarify","what wattage","what size"]},
+      {label:"I check stock/availability before promising something", kw:["check stock","availability","in stock","check inventory"]},
+      {label:"I offer alternatives when the ideal option isn't available", kw:["alternative","substitute","instead","similar product"]},
+      {label:"I explain the trade-offs between options rather than just picking one", kw:["trade-off","explain the difference","pros and cons","why i recommend"]},
+    ],
+    example:"If they're not sure of the exact spec, I ask a couple of questions about where it's going and what it's replacing. I check what's actually in stock before I recommend it, and if the ideal option isn't available, I explain the closest substitute and why it still works for them.",
+    hint:"What do you ask before recommending a product? What do you do when the perfect match isn't in stock?"},
+
+  {id:'pricing-judgment', type:'interview', family:'Pricing', stage:'Conversation — Pricing',
+    prompt:"Walk me through how you decide what price to quote and how much room you actually have to move.",
+    chips:["Standard list price","Volume-based pricing","Competitor-matching","Relationship/repeat customer pricing","Needs manager approval to go lower","Other"],
+    checklist:[
+      {label:"I know my discount limits without having to ask", kw:["know my limit","authorized","can go up to","without asking"]},
+      {label:"I check order size or history before quoting", kw:["order size","history","quantity","past orders"]},
+      {label:"I know when I need approval before offering a lower price", kw:["approval","ask my manager","need to check","escalate"]},
+      {label:"I explain the price instead of just stating a number", kw:["explain","because","that's why","includes","justify"]},
+    ],
+    example:"For standard orders I know my discount range without checking with anyone. Once it goes past a certain percentage, I know I need manager approval, so I tell the customer I need to confirm rather than guessing. I always explain what's included in the price rather than just dropping a number on them.",
+    hint:"Where's the line between what you can decide yourself and what needs approval? Do you know that line by memory, or do you have to check every time?"},
+
+  {id:'objection-price', type:'interview', family:'Objection Handling', stage:'Conversation — Objection Handling',
+    prompt:"Describe what you actually say when a customer pushes back on price or asks for a discount you're not sure you can give.",
+    chips:["Compares to a competitor's price","Compares to a past price they got","Says budget doesn't allow it","Asks 'what's your best price'","Goes quiet after seeing the quote","Other"],
+    checklist:[
+      {label:"I ask what they're comparing it to before reacting", kw:["ask what","compared to","versus","what are you comparing"]},
+      {label:"I reframe around value instead of dropping price immediately", kw:["reframe","value","what's included","instead of discount"]},
+      {label:"I know when to decide myself vs. escalate", kw:["decide myself","escalate","check with","manager"]},
+      {label:"I don't promise a discount I can't actually guarantee", kw:["don't promise","can't guarantee","won't commit","need to confirm"]},
+    ],
+    example:"I don't drop the price right away. I ask what they're comparing it to, then reframe around what's included and the cost of doing nothing. If they're still stuck and it's outside what I can approve myself, I tell them I need to check rather than promising something I can't deliver.",
+    hint:"Do you discount, reframe, or ask more questions first? What's the actual first sentence you say back to them?"},
+
+  {id:'quotation-prep', type:'interview', family:'Quotation', stage:'Pre-Quotation / Quotation',
+    prompt:"Walk me through how you put together and send a quotation once you know what the customer needs.",
+    chips:["Standard product, fast quote","Custom or project quote","Needs pre-quotation first (info incomplete)","Bidding/tender quote","Revision of an earlier quote","Other"],
+    checklist:[
+      {label:"I confirm specs and quantity before quoting", kw:["confirm spec","confirm quantity","double-check","before i quote"]},
+      {label:"I check pricing/discount limits before sending", kw:["check pricing","check discount","within my limit"]},
+      {label:"I double-check the quote before it goes out", kw:["double-check","review before","check the numbers","proofread"]},
+      {label:"I set expectations on next steps when I send it", kw:["next steps","let them know","tell them what happens next","follow up plan"]},
+    ],
+    example:"I confirm the exact specs and quantity with the customer before I even open the quote template, so I'm not sending something that needs revising. I check my numbers once before it goes out, and when I send it I tell them when to expect a follow-up from me so it doesn't just sit there.",
+    hint:"What do you need locked down before you can quote accurately? Does anyone else check it, or is it just you?"},
+
+  {id:'follow-up', type:'interview', family:'Follow-up', stage:'Follow-up',
+    prompt:"Walk me through what you actually do when a customer goes quiet after receiving a quotation.",
+    chips:["No response at all","Said they'd 'think about it'","Went back to comparing options","Waiting on their own internal approval","End of month/quarter pressure","Other"],
+    checklist:[
+      {label:"I follow a set cadence rather than guessing when to follow up", kw:["cadence","schedule","every few days","set time"]},
+      {label:"Each follow-up adds something new, not just 'checking in'", kw:["something new","case study","new information","not just checking"]},
+      {label:"I know when to stop chasing and mark it lost", kw:["stop","mark it lost","give up","close it out"]},
+      {label:"I try to find the real reason before assuming it's price", kw:["real reason","ask why","find out","before assuming"]},
+    ],
+    example:"I send a short check-in a few days after the quote, then something with actual new value in it about a week later — like a spec sheet or a similar project we did. If I still haven't heard anything after that, I ask directly whether I should close it out rather than letting it sit forever.",
+    hint:"How many times do you follow up, and what does each message actually say? When do you decide to stop?"},
+
+  {id:'close-handoff', type:'interview', family:'Close & Fulfillment', stage:'Close → Sales Order → Fulfillment',
+    prompt:"Walk me through what happens from the moment a customer says yes, through order and delivery.",
+    chips:["Standard stock order","Custom or project order","Requires staged/partial delivery","First-time customer","Repeat customer","Other"],
+    checklist:[
+      {label:"I confirm the order details match the quote exactly", kw:["confirm order","match the quote","double-check order"]},
+      {label:"I hand off clearly to whoever processes the order", kw:["hand off","hand over","notify","pass to"]},
+      {label:"I check in before or at delivery", kw:["check in","before delivery","at delivery","confirm delivery"]},
+      {label:"I use this as a chance to set up the next purchase", kw:["next purchase","repeat","stay in touch","future order"]},
+    ],
+    example:"Once they confirm, I check the order matches exactly what was quoted before it goes to processing, and I make sure whoever's fulfilling it has everything they need. I check in around delivery time, and for repeat-worthy customers I use that moment to mention what's coming up that they might need next.",
+    hint:"What's most likely to go wrong between 'yes' and the product actually arriving? Do you stay involved, or does it leave your hands completely?"},
+
+  {id:'ownership-conflict', type:'interview', family:'Ownership & Identity', stage:'Sales Assignment — Ownership Conflict',
+    prompt:"Walk me through what happens when you realize a lead you've been talking to is already being handled by another salesperson, or already has history somewhere else in the system.",
+    chips:["Found via LINE OA tag/dot","Customer mentioned another salesperson","Found in ERP/order history","Admin flagged it after the fact","Other"],
+    checklist:[
+      {label:"I check before I go too far into the conversation", kw:["check first","before i go far","early on","right away"]},
+      {label:"I raise it directly with the other person rather than just keeping the lead", kw:["raise it","tell the other","let them know","check with"]},
+      {label:"I let admin/traffic resolve ownership disputes rather than deciding myself", kw:["admin decide","let admin","traffic team","not my call"]},
+      {label:"I document what happened so it doesn't repeat", kw:["document","note it","log it","write it down"]},
+    ],
+    example:"If I notice the dot/tag or the customer mentions someone else's name, I stop and check before going further. I'd rather flag it to admin and the other salesperson same day than have an awkward conflict later over who gets credit.",
+    hint:"How do you even notice this is happening? Who do you tell, and how fast?"},
+
+  {id:'multichannel-identity', type:'interview', family:'Ownership & Identity', stage:'Conversation — Customer Identity',
+    prompt:"A customer messages you but you're not sure if you've spoken to them before under a different name, phone number, or channel. Walk me through how you check.",
+    chips:["Check phone number in system","Check company name","Ask directly if we've spoken before","Check past quotations/orders","Other"],
+    checklist:[
+      {label:"I check available records before assuming it's new", kw:["check records","check system","look up","search"]},
+      {label:"I ask directly rather than guessing", kw:["ask directly","ask them","just ask"]},
+      {label:"I treat it as the same customer if there's a match, not a fresh lead", kw:["same customer","not a new lead","link it","merge"]},
+      {label:"I flag it if I can't tell for sure", kw:["flag","not sure","escalate","check with admin"]},
+    ],
+    example:"I check phone number and company name against what we have first. If nothing matches clearly, I just ask them directly — most people don't mind confirming, and it's better than treating a repeat customer like a stranger.",
+    hint:"What do you check first? What do you do if you genuinely can't tell?"},
+
+  {id:'stock-shortage', type:'interview', family:'Product Fit', stage:'Conversation — Product Fit (Shortage)',
+    prompt:"Walk me through what you do when the product a customer wants is out of stock or has a long lead time.",
+    chips:["Offer substitute in stock","Offer to wait with an ETA","Check other branches/warehouses","Escalate to check with supplier","Other"],
+    checklist:[
+      {label:"I check actual availability before promising anything", kw:["check availability","check stock","confirm stock"]},
+      {label:"I offer a real alternative instead of just saying no", kw:["alternative","substitute","offer instead"]},
+      {label:"I give an honest timeline instead of a vague one", kw:["honest timeline","real eta","actual date","won't guess"]},
+      {label:"I check other locations/sources before giving up", kw:["other branch","other warehouse","check elsewhere"]},
+    ],
+    example:"I check real stock before saying anything, not just assume. If it's genuinely unavailable, I offer the closest substitute and explain why it works, or give them an honest ETA instead of a vague 'soon.'",
+    hint:"Do you default to a substitute, a wait time, or checking elsewhere first?"},
+
+  {id:'competitor-compare', type:'interview', family:'Objection Handling', stage:'Conversation — Objection Handling (Competitor)',
+    prompt:"Walk me through what you say when a customer tells you a competitor is offering something similar for less.",
+    chips:["Ask what exactly they're comparing","Explain quality/service difference","Match if within my authority","Escalate for approval","Other"],
+    checklist:[
+      {label:"I find out exactly what's being compared before reacting", kw:["what exactly","compared to","clarify","ask what"]},
+      {label:"I explain the difference instead of just matching the price", kw:["explain the difference","quality","service","not the same"]},
+      {label:"I know what I'm allowed to match myself", kw:["within my authority","can match","allowed to"]},
+      {label:"I escalate when it's beyond what I can decide", kw:["escalate","manager","check with","approval"]},
+    ],
+    example:"I ask what exactly they're comparing — sometimes it's not the same spec at all. If it genuinely is comparable, I explain what's different about buying from us, and only match the price myself if it's within what I'm allowed to do.",
+    hint:"Do you assume the comparison is fair, or check first? What's actually different about your offer?"},
+
+  {id:'bidding-quote', type:'interview', family:'Quotation', stage:'Pre-Quotation / Quotation (Bidding)',
+    prompt:"Walk me through how a bidding or tender quote is different from a normal quote for you.",
+    chips:["Needs more formal documentation","Longer lead time to prepare","Requires approval before submitting","Competitive pricing pressure","Other"],
+    checklist:[
+      {label:"I know what extra documentation a bid needs", kw:["documentation","paperwork","formal","requirements"]},
+      {label:"I build in more time than a normal quote", kw:["more time","longer","lead time","earlier"]},
+      {label:"I get the right approval before submitting", kw:["approval","sign off","before submitting","check with"]},
+      {label:"I price differently knowing it's competitive", kw:["competitive","price differently","tender pricing"]},
+    ],
+    example:"A bid needs more formal paperwork and usually a manager's eyes on it before it goes out, so I start earlier than I would for a normal quote. I also price it knowing we're being compared directly against named competitors, not just a general inquiry.",
+    hint:"What extra steps does a bid need that a normal quote doesn't?"},
+
+  {id:'internal-approval', type:'interview', family:'Quotation', stage:'Quotation — Internal Review',
+    prompt:"Walk me through who else needs to see or approve a quote before it goes out, and when.",
+    chips:["Manager sign-off above a threshold","Technical review for custom specs","No one — I send directly","Peer review before big deals","Other"],
+    checklist:[
+      {label:"I know the specific threshold or trigger for needing approval", kw:["threshold","above a certain","trigger","when it needs"]},
+      {label:"I get technical review for anything non-standard", kw:["technical review","custom","non-standard","check with technical"]},
+      {label:"I know when I can just send it myself", kw:["send it myself","no approval needed","don't need"]},
+      {label:"I build approval time into my timeline to the customer", kw:["build in time","account for","factor in"]},
+    ],
+    example:"Below a certain size I just send it myself. Above that, or if it's a custom spec, it goes to my manager or the technical team first — so I tell the customer up front it might take a day longer rather than overpromising.",
+    hint:"Is there a clear line for when you need sign-off, or does it depend on judgment call?"},
+
+  {id:'repeat-customer-relationship', type:'interview', family:'Repeat Purchase', stage:'Repeat Purchase / Marketplace Migration',
+    prompt:"Walk me through how you keep a past customer coming back to buy from you directly instead of going to a marketplace or another salesperson.",
+    chips:["Personal follow-up after delivery","Proactive info on new products","Special pricing for loyalty","I don't actively do this","Other"],
+    checklist:[
+      {label:"I follow up after delivery, not just after the sale", kw:["after delivery","check in later","follow up after"]},
+      {label:"I proactively reach out with relevant new information", kw:["proactive","reach out","let them know about"]},
+      {label:"I do something concrete to make direct purchase worth it to them", kw:["worth it","incentive","special","loyalty"]},
+      {label:"I'm honest that I don't really do this yet", kw:["don't really","not much","haven't thought about","no real process"]},
+    ],
+    example:"I check in a few weeks after delivery to see how it's working out, and I let good customers know when something relevant comes in before they'd think to ask. It's the difference between them buying from me again versus just finding it cheaper on Shopee.",
+    hint:"Is this something you do deliberately, or does it just happen sometimes?"},
+
+  {id:'escalation-timing', type:'interview', family:'Escalation', stage:'Conversation — Escalation Judgment',
+    prompt:"Walk me through how you decide when a conversation needs to go to your manager versus when you handle it yourself.",
+    chips:["Dollar/discount threshold","Technical complexity","Relationship sensitivity","I rarely escalate","Other"],
+    checklist:[
+      {label:"I have a clear line for when I escalate on price", kw:["clear line","threshold","above a certain"]},
+      {label:"I escalate technical questions I can't answer confidently", kw:["technical","don't know","confirm with"]},
+      {label:"I escalate relationship-sensitive situations even without a hard rule", kw:["sensitive","relationship","careful","judgment call"]},
+      {label:"I default to handling things myself unless there's a clear reason not to", kw:["handle myself","rarely escalate","don't usually"]},
+    ],
+    example:"Price above my limit or anything technical I'm not confident on goes up automatically. Beyond that it's judgment — if a long-time customer seems really upset, I'd rather loop my manager in early than let it get worse.",
+    hint:"Is there an actual rule, or is it mostly gut feel?"},
+];
+
+// Same idea for scenarios — a bigger pool than any single session draws from.
+const SCENARIO_BANK = [
+  {id:'scenario-discount', type:'scenario', family:'Pricing Pressure', stage:'Conversation — Pricing (pressure test)',
+    situation:"A long-time customer messages asking for a 30% discount, citing a competitor's offer. You don't have authority to approve anything close to that.",
+    prompt:"What do you actually do — in the moment, and after?",
+    example:"I'd tell them I hear them and I want to find a way to make this work, but I can't approve that number myself. I'd ask what's really driving the ask, then go to my manager same day with the account context instead of promising anything.",
+    hint:"Do you say yes, no, or 'let me check'? Who do you go to, and how fast?"},
+  {id:'scenario-demo-gap', type:'scenario', family:'Product Knowledge Gap', stage:'Conversation — Product Knowledge Gap',
+    situation:"You're mid-conversation and the customer asks a technical spec question you genuinely don't know the answer to.",
+    prompt:"How do you handle it right then, and what happens afterward?",
+    example:"I say I want to give them a precise answer rather than guess, note the question down, and tell them I'll confirm with our technical/product person by end of day. Then I actually do it same day.",
+    hint:"Do you guess, deflect, or admit it? What happens after the conversation ends?"},
+  {id:'scenario-quarter-end', type:'scenario', family:'Follow-up Pressure', stage:'Follow-up (pressure test)',
+    situation:"A lead's gone silent for three weeks after seeming very interested. It's the last week of the month and you need the deal.",
+    prompt:"What's your move?",
+    example:"I don't send a desperate 'just checking in' message. I send something with new value in it — a relevant spec sheet or a direct question about what changed — and I'm upfront that I'd rather know now than get strung along.",
+    hint:"Does the end-of-month pressure change what you'd normally do? Should it?"},
+  {id:'scenario-wrong-lead', type:'scenario', family:'Ownership Conflict', stage:'Ownership Conflict (pressure test)',
+    situation:"You get assigned a lead, but after messaging them you realize they already have an ongoing conversation with another salesperson on a different channel.",
+    prompt:"What do you do?",
+    example:"I stop and message the other salesperson directly before going any further with the customer, rather than just continuing because the lead landed with me. I'd rather sort ownership out quietly than have the customer see two of us reaching out separately.",
+    hint:"Do you keep going, stop immediately, or check with someone first?"},
+  {id:'scenario-angry-customer', type:'scenario', family:'Service Recovery', stage:'Service Recovery (pressure test)',
+    situation:"A customer is upset because a previous order arrived with the wrong specification, and they're messaging you angrily even though it wasn't your mistake.",
+    prompt:"How do you handle the conversation?",
+    example:"I don't get defensive about it not being my fault. I acknowledge the frustration first, confirm what actually went wrong, and focus on what happens next rather than who's to blame — then loop in whoever needs to fix it.",
+    hint:"Do you explain it wasn't you, or deal with the customer's frustration first?"},
+  {id:'scenario-bulk-discount-pressure', type:'scenario', family:'Pricing Pressure', stage:'Pricing Pressure — Bulk Order',
+    situation:"A corporate client wants to place a large bulk order but is pushing hard for a discount well beyond standard, threatening to walk if you don't match it immediately.",
+    prompt:"What's your move?",
+    example:"I don't cave to the threat in the moment. I tell them I want to make this work and I'll come back with a real answer quickly, then actually go get that answer fast rather than stalling — the urgency cuts both ways.",
+    hint:"Does the threat to walk change what you'd normally do? Should it?"},
+  {id:'scenario-stock-out-urgent', type:'scenario', family:'Product/Stock Gap', stage:'Product/Stock Gap (pressure test)',
+    situation:"A customer needs a product urgently for a project deadline, but it's out of stock with no clear restock date.",
+    prompt:"How do you handle this?",
+    example:"I'm upfront about the real situation instead of giving false hope. I check every alternative — other branches, substitute products, partial delivery — before telling them there's genuinely nothing I can do.",
+    hint:"Do you say what they want to hear, or what's actually true? What do you check before answering?"},
+  {id:'scenario-marketplace-poaching', type:'scenario', family:'Repeat Purchase', stage:'Repeat Purchase (pressure test)',
+    situation:"You find out a regular customer has started buying the same products through Shopee/Lazada instead of directly from you, at a lower price.",
+    prompt:"What do you do?",
+    example:"I wouldn't guilt them about it. I'd reach out to understand why — usually it's price or convenience — and see if there's something I can actually offer directly that makes buying from me worth it again.",
+    hint:"Do you ignore it, confront it, or try to understand why first?"},
+];
+
+/* Randomly draws `n` questions from `bank`, trying to spread across distinct topic
+   families first (so a session doesn't accidentally land on three pricing questions and
+   skip follow-up entirely), then fills any remainder randomly if `n` exceeds the number
+   of distinct families available. */
+function pickSubset(bank, n){
+  const groups = {};
+  bank.forEach(q=>{ (groups[q.family] = groups[q.family]||[]).push(q); });
+  const familyKeys = Object.keys(groups).sort(()=>Math.random()-0.5);
+  const picked = []; const used = new Set();
+  for(const key of familyKeys){
+    if(picked.length>=n) break;
+    const options = groups[key];
+    const choice = options[Math.floor(Math.random()*options.length)];
+    picked.push(choice); used.add(choice.id);
+  }
+  if(picked.length < n){
+    const remaining = bank.filter(q=>!used.has(q.id)).sort(()=>Math.random()-0.5);
+    for(const q of remaining){
+      if(picked.length>=n) break;
+      picked.push(q); used.add(q.id);
+    }
+  }
+  return picked.sort(()=>Math.random()-0.5);
+}
+
+const INTERVIEW_COUNT = 8; // keep under ~20 min total per Max's brief
+const SCENARIO_COUNT = 3;
+
+/* ============================= QUESTION ENGINE =============================
+   Swappable by design: scripted by default, adaptive once a backend is deployed and
+   turned on in Settings (Backend URL + "Use adaptive questions"). The backend holds the
+   GLM key server-side and does the actual model call — see /sales-playbook-backend and
+   ADAPTIVE_QUESTIONS_SPEC.md. Nothing else in this file needs to change to switch modes,
+   since every caller goes through QuestionEngine instead of indexing the arrays directly. */
+const QuestionEngine = {
+  async getQuestion(phase, index){
+    const list = phase==='interview' ? state.interviewQuestions : state.scenarioQuestions;
+    const adaptiveOn = store.settings.adaptiveMode && store.settings.backendUrl;
+    if(!adaptiveOn){
+      return list[index] || null;
+    }
+    try{
+      const res = await fetch(store.settings.backendUrl.replace(/\/$/,'') + '/api/generate-question', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          persona: PERSONA, stages: REVENUE_JOURNEY_STAGES,
+          transcriptSoFar: state.sessionEntries, phase, index,
+        }),
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){
+        toast('Adaptive question generation failed — using the scripted question instead.');
+        return list[index] || null;
+      }
+      if(data.done){
+        return null; // signals "no more ground to cover" — advanceQuestion() treats this like reaching the end of the list
+      }
+      return data.question;
+    }catch(e){
+      toast('Could not reach the backend — using the scripted question instead.');
+      return list[index] || null;
+    }
+  }
+};
+
+/* ============================= STORE / STATE ============================= */
+const STORE_KEY='spcs_store_v1';
+const DRAFT_KEY='spcs_draft_v1';
+
+function loadStore(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      parsed.settings = Object.assign({name:'Rich', defaultPrivacy:'private', backendUrl:'', adaptiveMode:false, adminToken:''}, parsed.settings||{});
+      return parsed;
+    }
+  }catch(e){}
+  return {settings:{name:'Rich', defaultPrivacy:'private', backendUrl:'', adaptiveMode:false, adminToken:''}, sessions:[]};
+}
+function saveStore(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+function loadDraft(){
+  try{ const raw=localStorage.getItem(DRAFT_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+  return null;
+}
+function saveDraft(d){ localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); }
+function clearDraft(){ localStorage.removeItem(DRAFT_KEY); }
+
+let store = loadStore();
+// When this file is served over http/https (i.e. the hosted link, not a local double-clicked
+// file), it's being served BY the backend — so default Backend URL to "wherever this page came
+// from" instead of making every employee paste it in manually. Opening the raw .html file
+// locally (file://) skips this, since there's no backend colocated with it in that case.
+if(!store.settings.backendUrl && location.protocol !== 'file:'){
+  store.settings.backendUrl = location.origin;
+  saveStore(store);
+}
+
+function freshEntryFor(q){
+  const chips = q.chips || (q.type==='scenario' ? SCENARIO_CHIPS : []);
+  const bank = q.checklist || (q.type==='scenario' ? SCENARIO_CHECKLIST : []);
+  return {
+    questionId: q.id || ('adaptive_'+Date.now()), type:q.type, prompt:q.prompt, situation:q.situation||null, stage:q.stage||null,
+    chipsAvailable: chips.slice(),
+    chipsSelected:[], otherText:'',
+    checklist: bank.map(c=>({label:c.label, kw:c.kw, checked:false, userTouched:false})),
+    freeform:'', summary:'', summaryEdited:false, hintOpen:false, skipped:false,
+  };
+}
+
+function defaultState(){
+  // Fresh random draw for this session's 8 interview + 3 scenario questions, so
+  // back-to-back employees don't get the identical set in the identical order.
+  const interviewQuestions = pickSubset(INTERVIEW_BANK, INTERVIEW_COUNT);
+  const scenarioQuestions = pickSubset(SCENARIO_BANK, SCENARIO_COUNT);
+  return {
+    view:'interview', phase:'interview', qIndex:0,
+    privacy: store.settings.defaultPrivacy || 'private',
+    sessionEntries:[],
+    interviewQuestions, scenarioQuestions,
+    currentQuestionData: interviewQuestions[0],
+    currentEntry: freshEntryFor(interviewQuestions[0]),
+    startedAt: new Date().toISOString(),
+    resumeBannerDismissed:false,
+    lastSavedSessionId:null,
+  };
+}
+
+let state = defaultState();
+let draftAvailable = !!loadDraft();
+
+/* ============================= UTIL ============================= */
+function escapeHtml(str){
+  return (str||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(window.__toastT); window.__toastT=setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function currentQuestion(){
+  return state.currentQuestionData || null;
+}
+function totalQuestions(){
+  return state.interviewQuestions.length + state.scenarioQuestions.length;
+}
+function questionNumberOverall(){
+  if(state.phase==='interview') return state.qIndex+1;
+  if(state.phase==='scenario') return state.interviewQuestions.length + state.qIndex + 1;
+  return totalQuestions();
+}
+
+function autoCheckKeywords(entry){
+  const text=(entry.freeform||'').toLowerCase();
+  entry.checklist.forEach(item=>{
+    if(item.userTouched) return;
+    const hit = item.kw.some(k=>text.includes(k));
+    item.checked = hit;
+  });
+}
+
+function joinNatural(arr){
+  if(arr.length===0) return '';
+  if(arr.length===1) return arr[0];
+  if(arr.length===2) return arr[0]+' and '+arr[1];
+  return arr.slice(0,-1).join(', ')+', and '+arr[arr.length-1];
+}
+
+function buildSummary(entry){
+  const checked = entry.checklist.filter(c=>c.checked).map(c=>c.label.replace(/^I /,'').replace(/^I'm/,'are'));
+  const chips = entry.chipsSelected.filter(c=>c!=='Other').concat(entry.otherText?[entry.otherText]:[]);
+  const excerpt = (entry.freeform||'').trim().split(/\s+/).slice(0,22).join(' ');
+  let opening = entry.type==='scenario' ? "In this situation, you say you'd " : "You have a process where you ";
+  let body='';
+  if(checked.length){
+    body = joinNatural(checked)+'.';
+  } else if(excerpt){
+    body = 'handle it based on: "'+excerpt+(entry.freeform.trim().split(/\s+/).length>22?'…':'')+'"';
+  } else {
+    body = "haven't described this one yet.";
+  }
+  let trigger='';
+  if(chips.length){
+    trigger = entry.type==='scenario'
+      ? ' Your first move leans toward '+joinNatural(chips.map(c=>c.toLowerCase()))+'.'
+      : ' Context that applies here: '+joinNatural(chips.map(c=>c.toLowerCase()))+'.';
+  }
+  return (opening+body+trigger).trim();
+}
+
+function refreshSummary(entry){
+  if(entry.summaryEdited) return;
+  entry.summary = buildSummary(entry);
+}
+
+/* ============================= RENDER: SHELL ============================= */
+function render(){
+  renderSidenav();
+  renderSideinfo();
+  renderMain();
+  document.getElementById('avatarBadge').textContent = (store.settings.name||'R').trim().charAt(0).toUpperCase() || 'R';
+  const pill = document.getElementById('modePill');
+  const label = state.view!=='interview' ? {sessions:'My Sessions',knowledge:'My Knowledge',settings:'Settings'}[state.view]
+    : (state.phase==='interview' ? 'Interview Mode' : state.phase==='scenario' ? 'Scenario Mode' : 'Reviewing');
+  pill.querySelector('span:last-child').textContent = label;
+}
+
+function renderSidenav(){
+  const items=[
+    {key:'interview', label:'Interview', icon:ICON.interview},
+    {key:'sessions', label:'My Sessions', icon:ICON.sessions},
+    {key:'knowledge', label:'My Knowledge', icon:ICON.knowledge},
+    {key:'team', label:'Team Results', icon:ICON.knowledge},
+    {key:'settings', label:'Settings', icon:ICON.settings},
+  ];
+  const nav=document.getElementById('sidenav');
+  nav.innerHTML = items.map(it=>
+    `<a class="${state.view===it.key?'active':''}" data-nav="${it.key}">${it.icon}<span>${it.label}</span></a>`
+  ).join('') + `
+    <div class="nav-hint">${ICON.bulb}<div>You answer in your own words. The assistant just helps structure it and turn it into something reusable.</div></div>`;
+  nav.querySelectorAll('[data-nav]').forEach(a=>a.addEventListener('click', ()=>{
+    state.view = a.getAttribute('data-nav'); render();
+  }));
+}
+
+function renderSideinfo(){
+  const aside=document.getElementById('sideinfo');
+  if(state.view!=='interview'){ aside.innerHTML=''; aside.style.display='none'; return; }
+  aside.style.display='flex';
+  aside.innerHTML = `
+    <div class="card">
+      <h3>${ICON.sparkleSm} What you'll get</h3>
+      <div class="info-item"><div class="info-ic a">${ICON.example}</div>
+        <div><div class="info-title">Process draft</div><div class="info-sub">A clear, step-by-step draft of how you get your recurring work done.</div></div></div>
+      <div class="info-item"><div class="info-ic b">${ICON.check}</div>
+        <div><div class="info-title">Checklist</div><div class="info-sub">Key actions, tools, and decisions to replicate your process.</div></div></div>
+      <div class="info-item"><div class="info-ic c">${ICON.knowledge}</div>
+        <div><div class="info-title">Personal knowledge notes</div><div class="info-sub">Your playbook answers and scenario responses, captured for you to reuse.</div></div></div>
+    </div>
+    <div class="card">
+      <h3>${ICON.lock.replace('width="26" height="26"','width="15" height="15"')} Privacy &amp; sharing</h3>
+      ${['private','anon','manager','team'].map(v=>privacyRow(v)).join('')}
+      <div class="footnote">${ICON.lock.replace('width="26" height="26"','width="12" height="12"')} You control what happens next.</div>
+    </div>`;
+  aside.querySelectorAll('input[name=privacy]').forEach(r=>r.addEventListener('change', e=>{
+    state.privacy = e.target.value; saveCurrentDraft(); render();
+  }));
+}
+function privacyRow(v){
+  const meta={
+    private:{t:'Keep private', s:'Only you can see it'},
+    anon:{t:'Share anonymously', s:'Shared without your name'},
+    manager:{t:'Share with manager', s:'Share for manager feedback'},
+    team:{t:'Add to team knowledge base', s:'Contribute to team knowledge'},
+  }[v];
+  return `<label class="radio-row"><input type="radio" name="privacy" value="${v}" ${state.privacy===v?'checked':''}>
+    <div><div class="radio-title">${meta.t}</div><div class="radio-sub">${meta.s}</div></div></label>`;
+}
+
+/* ============================= RENDER: MAIN ============================= */
+function renderMain(){
+  const main=document.getElementById('main');
+  if(state.view==='sessions'){ main.innerHTML = renderSessionsView(); wireSessionsView(); return; }
+  if(state.view==='knowledge'){ main.innerHTML = renderKnowledgeView(); wireKnowledgeView(); return; }
+  if(state.view==='team'){ renderTeamView(); return; }
+  if(state.view==='settings'){ main.innerHTML = renderSettingsView(); wireSettingsView(); return; }
+
+  // interview / scenario / transition / complete
+  let html='';
+  if(draftAvailable && !state.resumeBannerDismissed && state.sessionEntries.length===0 && state.qIndex===0 && state.phase==='interview'){
+    html += `<div class="draft-banner">
+      <div class="txt"><b>You have an interview in progress</b>Pick up where you left off, or start fresh.</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" id="resumeBtn">Resume session</button>
+        <button class="btn btn-outline" id="discardBtn">Start over</button>
+      </div></div>`;
+  }
+  if(state.phase==='interview' || state.phase==='scenario'){
+    html += renderProgress() + renderQuestionCard();
+  } else if(state.phase==='transition'){
+    html += renderTransitionCard();
+  } else if(state.phase==='complete'){
+    html += renderCompleteCard();
+  }
+  document.getElementById('main').innerHTML = html;
+  wireInterviewView();
+}
+
+function renderProgress(){
+  const n = questionNumberOverall();
+  const total = totalQuestions();
+  const pct = Math.round(((n-1)/total)*100);
+  const phaseLabel = state.phase==='interview' ? 'Interview' : 'Hypothetical Scenario';
+  return `<div class="card progress-wrap">
+    <div class="progress-label">Question ${n} of ${total}</div>
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="phase-pill">${phaseLabel}</div>
+  </div>`;
+}
+
+function renderQuestionCard(){
+  const q = currentQuestion();
+  const entry = state.currentEntry;
+  const isScenario = q.type==='scenario';
+  refreshSummary(entry);
+
+  const chipsHtml = entry.chipsAvailable.map(c=>{
+    const sel = entry.chipsSelected.includes(c);
+    return `<div class="chip ${sel?'selected':''}" data-chip="${escapeHtml(c)}">
+      <span class="badge">${ICON.check}</span><span>${escapeHtml(c)}</span></div>`;
+  }).join('') + (entry.chipsSelected.includes('Other') ? `<input class="chip-other-input" id="otherInput" placeholder="Say more…" value="${escapeHtml(entry.otherText)}">` : '');
+
+  const checklistHtml = entry.checklist.map((c,i)=>`
+    <label class="check-row ${!c.userTouched && c.checked ? 'auto':''}">
+      <input type="checkbox" data-check="${i}" ${c.checked?'checked':''}>
+      <span>${escapeHtml(c.label)}${(!c.userTouched && c.checked)?'<span class="tag">auto</span>':''}</span>
+    </label>`).join('');
+
+  const canContinue = (entry.freeform||'').trim().length>=15;
+
+  return `<div class="card">
+    <div class="q-banner">
+      <div class="ai-avatar">${ICON.sparkle}</div>
+      <div class="q-banner-text">
+        <div class="q-label">${isScenario?'Hypothetical scenario':'AI Interviewer'}</div>
+        ${isScenario ? `<div class="q-situation">${escapeHtml(q.situation)}</div>` : ''}
+        <p class="q-prompt">${escapeHtml(q.prompt)}</p>
+        <div class="q-sub">Select what fits, then add details in your own words.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><div class="step-num">1</div><div class="step-title">Choose what fits</div></div>
+      <div class="chip-row" id="chipRow">${chipsHtml}</div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><div class="step-num">2</div><div class="step-title">Quick checklist</div></div>
+      <div class="checklist-grid" id="checkGrid">${checklistHtml}</div>
+    </div>
+
+    <div class="step">
+      <div class="step-head"><div class="step-num">3</div><div class="step-title">Add details in your own words</div></div>
+      <textarea class="freeform" id="freeformBox" maxlength="1500" placeholder="Type it the way you'd actually explain it to a new teammate…">${escapeHtml(entry.freeform)}</textarea>
+      <div class="charcount"><span id="charcount">${entry.freeform.length}</span> / 1500</div>
+      <div class="helper-row">
+        <button class="helper-btn" id="btnExample">${ICON.example} Show example</button>
+        <button class="helper-btn" id="btnSteps">${ICON.steps} Break into steps</button>
+        <button class="helper-btn" id="btnVoice">${ICON.mic} Use voice</button>
+        <button class="helper-btn" id="btnHint">${ICON.help} I'm not sure how to answer</button>
+      </div>
+      ${entry.hintOpen ? `<div class="hint-box">${ICON.bulb} <b>Think about:</b> ${escapeHtml(q.hint)}</div>` : ''}
+      ${!canContinue ? `<div class="warn-inline" id="warnInline" style="display:none;">Add a little more detail (at least ~15 characters) before continuing.</div>` : ''}
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-head">${ICON.sparkleSm} AI summary</div>
+      <div class="summary-text" id="summaryText" contenteditable="${entry.summaryEdited?'true':'false'}">${escapeHtml(entry.summary || 'Your summary will build itself in as you fill things in above.')}</div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="btnContinue">Continue ${ICON.arrow}</button>
+      <button class="btn btn-outline" id="btnEditSummary">${entry.summaryEdited?'Save summary edits':'Edit summary'}</button>
+      <button class="btn btn-ghost" id="btnSkip">Skip for now</button>
+    </div>
+  </div>`;
+}
+
+function renderTransitionCard(){
+  return `<div class="card center-card">
+    <div class="big-ic">${ICON.checkLg}</div>
+    <h2>Nice work — ${state.interviewQuestions.length} of ${state.interviewQuestions.length} interview questions captured</h2>
+    <p>Next up: a few hypothetical situations. These help show how you'd actually handle things in the moment, not just your day-to-day routine. Takes about 5 more minutes.</p>
+    <div class="center-actions">
+      <button class="btn btn-primary" id="btnStartScenarios">Start scenarios ${ICON.arrow}</button>
+      <button class="btn btn-outline" id="btnFinishEarly">Finish now instead</button>
+    </div>
+  </div>`;
+}
+
+function renderCompleteCard(){
+  const interviewEntries = state.sessionEntries.filter(e=>e.type==='interview' && !e.skipped);
+  const scenarioEntries = state.sessionEntries.filter(e=>e.type==='scenario' && !e.skipped);
+  const checklistSet = new Map();
+  state.sessionEntries.forEach(e=>e.checklist.filter(c=>c.checked).forEach(c=>checklistSet.set(c.label,true)));
+
+  return `<div class="card center-card" style="text-align:left;">
+    <div style="text-align:center;">
+      <div class="big-ic">${ICON.checkLg}</div>
+      <h2>Session complete</h2>
+      <p>Here's what got captured. Review it, choose how it's shared, then save it to your sessions.</p>
+      <div class="stat-row">
+        <div class="stat"><div class="num">${interviewEntries.length}</div><div class="lbl">Process answers</div></div>
+        <div class="stat"><div class="num">${scenarioEntries.length}</div><div class="lbl">Scenario answers</div></div>
+        <div class="stat"><div class="num">${checklistSet.size}</div><div class="lbl">Checklist items</div></div>
+      </div>
+    </div>
+
+    <div class="recap-section">
+      <h4>Process draft</h4>
+      ${interviewEntries.length ? interviewEntries.map(e=>`<div class="recap-item"><div class="recap-q">${escapeHtml(e.prompt)}</div><div class="recap-s">${escapeHtml(e.summary)}</div></div>`).join('') : '<div class="recap-s">Nothing captured yet.</div>'}
+
+      <h4>Consolidated checklist</h4>
+      <div class="recap-checklist">${[...checklistSet.keys()].map(l=>`<span class="recap-chip">${escapeHtml(l)}</span>`).join('') || '<span class="recap-s">None checked yet.</span>'}</div>
+
+      <h4>Personal knowledge notes (scenarios)</h4>
+      ${scenarioEntries.length ? scenarioEntries.map(e=>`<div class="recap-item"><div class="recap-q">${escapeHtml(e.situation)}</div><div class="recap-s">${escapeHtml(e.summary)}</div></div>`).join('') : '<div class="recap-s">No scenarios answered.</div>'}
+    </div>
+
+    <div class="action-row" style="justify-content:center;">
+      <button class="btn btn-primary" id="btnSaveSession">Save session</button>
+      <button class="btn btn-outline" id="btnStartOver">Start a new interview</button>
+    </div>
+  </div>`;
+}
+
+/* ============================= WIRE: INTERVIEW ============================= */
+function saveCurrentDraft(){
+  if(state.phase!=='interview' && state.phase!=='scenario') { clearDraft(); return; }
+  saveDraft({phase:state.phase, qIndex:state.qIndex, sessionEntries:state.sessionEntries,
+    currentEntry:state.currentEntry, currentQuestionData:state.currentQuestionData,
+    interviewQuestions:state.interviewQuestions, scenarioQuestions:state.scenarioQuestions,
+    privacy:state.privacy, startedAt:state.startedAt});
+  draftAvailable=true;
+}
+
+function wireInterviewView(){
+  const resumeBtn=document.getElementById('resumeBtn');
+  if(resumeBtn){
+    resumeBtn.addEventListener('click', ()=>{
+      const d=loadDraft();
+      if(d){ state.phase=d.phase; state.qIndex=d.qIndex; state.sessionEntries=d.sessionEntries;
+        state.currentEntry=d.currentEntry; state.privacy=d.privacy; state.startedAt=d.startedAt;
+        // Resuming keeps the same randomly-picked subset the session started with —
+        // falls back to a fresh pick only for old drafts saved before this existed.
+        state.interviewQuestions = d.interviewQuestions || pickSubset(INTERVIEW_BANK, INTERVIEW_COUNT);
+        state.scenarioQuestions = d.scenarioQuestions || pickSubset(SCENARIO_BANK, SCENARIO_COUNT);
+        state.currentQuestionData = d.currentQuestionData ||
+          (d.phase==='interview' ? state.interviewQuestions[d.qIndex] : state.scenarioQuestions[d.qIndex]); }
+      state.resumeBannerDismissed=true; render();
+    });
+    document.getElementById('discardBtn').addEventListener('click', ()=>{
+      clearDraft(); draftAvailable=false; state=defaultState(); state.resumeBannerDismissed=true; render();
+    });
+  }
+
+  if(state.phase==='transition'){
+    const s=document.getElementById('btnStartScenarios');
+    if(s) s.addEventListener('click', ()=>{ state.phase='scenario'; state.qIndex=0;
+      state.currentQuestionData=state.scenarioQuestions[0]; state.currentEntry=freshEntryFor(state.scenarioQuestions[0]);
+      saveCurrentDraft(); render(); });
+    const f=document.getElementById('btnFinishEarly');
+    if(f) f.addEventListener('click', ()=>{ state.phase='complete'; render(); });
+    return;
+  }
+  if(state.phase==='complete'){
+    const sv=document.getElementById('btnSaveSession');
+    if(sv) sv.addEventListener('click', saveSession);
+    const so=document.getElementById('btnStartOver');
+    if(so) so.addEventListener('click', ()=>{ clearDraft(); draftAvailable=false; state=defaultState(); render(); });
+    return;
+  }
+
+  const entry = state.currentEntry;
+
+  document.querySelectorAll('[data-chip]').forEach(el=>el.addEventListener('click', ()=>{
+    const val = el.getAttribute('data-chip');
+    const idx = entry.chipsSelected.indexOf(val);
+    if(idx>-1) entry.chipsSelected.splice(idx,1); else entry.chipsSelected.push(val);
+    refreshSummary(entry); saveCurrentDraft(); render();
+  }));
+  const otherInput=document.getElementById('otherInput');
+  if(otherInput) otherInput.addEventListener('input', e=>{ entry.otherText=e.target.value; refreshSummary(entry); saveCurrentDraft(); });
+
+  document.querySelectorAll('[data-check]').forEach(el=>el.addEventListener('change', e=>{
+    const i=+el.getAttribute('data-check');
+    entry.checklist[i].checked = e.target.checked;
+    entry.checklist[i].userTouched = true;
+    refreshSummary(entry); saveCurrentDraft(); render();
+  }));
+
+  const box=document.getElementById('freeformBox');
+  let debounceT;
+  box.addEventListener('input', e=>{
+    entry.freeform = e.target.value;
+    document.getElementById('charcount').textContent = entry.freeform.length;
+    clearTimeout(debounceT);
+    debounceT=setTimeout(()=>{
+      autoCheckKeywords(entry); refreshSummary(entry); saveCurrentDraft();
+      document.getElementById('checkGrid').innerHTML = entry.checklist.map((c,i)=>`
+        <label class="check-row ${!c.userTouched && c.checked ? 'auto':''}">
+          <input type="checkbox" data-check="${i}" ${c.checked?'checked':''}>
+          <span>${escapeHtml(c.label)}${(!c.userTouched && c.checked)?'<span class="tag">auto</span>':''}</span>
+        </label>`).join('');
+      document.querySelectorAll('[data-check]').forEach(el=>el.addEventListener('change', ev=>{
+        const i=+el.getAttribute('data-check');
+        entry.checklist[i].checked = ev.target.checked; entry.checklist[i].userTouched = true;
+        refreshSummary(entry); saveCurrentDraft(); render();
+      }));
+      if(!entry.summaryEdited) document.getElementById('summaryText').textContent = entry.summary;
+      const btn=document.getElementById('btnContinue');
+      if(btn) btn.disabled = entry.freeform.trim().length<15;
+    }, 350);
+  });
+
+  const q=currentQuestion();
+  document.getElementById('btnExample').addEventListener('click', ()=>{
+    if(entry.freeform.trim() && !confirm('Replace your current answer with an example?')) return;
+    entry.freeform = q.example; box.value=q.example;
+    document.getElementById('charcount').textContent = entry.freeform.length;
+    autoCheckKeywords(entry); refreshSummary(entry); saveCurrentDraft(); render();
+  });
+  document.getElementById('btnSteps').addEventListener('click', ()=>{
+    const parts = entry.freeform.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+    if(parts.length<2){ toast('Add a bit more detail first — need at least two sentences to split into steps.'); return; }
+    entry.freeform = parts.map((p,i)=>`${i+1}. ${p}`).join('\n');
+    box.value=entry.freeform; document.getElementById('charcount').textContent = entry.freeform.length;
+    saveCurrentDraft(); render();
+  });
+  document.getElementById('btnVoice').addEventListener('click', ()=>startVoice(entry, box));
+  document.getElementById('btnHint').addEventListener('click', ()=>{ entry.hintOpen = !entry.hintOpen; render(); });
+
+  const summaryEl=document.getElementById('summaryText');
+  document.getElementById('btnEditSummary').addEventListener('click', ()=>{
+    if(entry.summaryEdited){
+      entry.summary = summaryEl.textContent.trim(); entry.summaryEdited=true;
+    } else {
+      entry.summaryEdited = true;
+    }
+    saveCurrentDraft(); render();
+    if(entry.summaryEdited){ const s=document.getElementById('summaryText'); s.focus(); }
+  });
+
+  const contBtn=document.getElementById('btnContinue');
+  contBtn.disabled = entry.freeform.trim().length<15;
+  contBtn.addEventListener('click', ()=>{
+    if(entry.freeform.trim().length<15){ const w=document.getElementById('warnInline'); if(w) w.style.display='block'; return; }
+    if(entry.summaryEdited) entry.summary = document.getElementById('summaryText').textContent.trim();
+    advanceQuestion(entry);
+  });
+  document.getElementById('btnSkip').addEventListener('click', ()=>{
+    entry.skipped = true; advanceQuestion(entry);
+  });
+}
+
+async function advanceQuestion(entry){
+  state.sessionEntries.push(entry);
+  const list = state.phase==='interview' ? state.interviewQuestions : state.scenarioQuestions;
+  const hasMoreScripted = state.qIndex+1 < list.length;
+  let q = null;
+  if(hasMoreScripted){
+    state.qIndex += 1;
+    q = await QuestionEngine.getQuestion(state.phase, state.qIndex);
+  }
+  if(q){
+    state.currentQuestionData = q;
+    state.currentEntry = freshEntryFor(q);
+  } else if(state.phase==='interview'){
+    state.phase='transition';
+  } else {
+    state.phase='complete';
+  }
+  saveCurrentDraft(); render();
+}
+
+function startVoice(entry, box){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast("Voice input isn't supported in this browser — type your answer instead."); return; }
+  try{
+    const rec = new SR();
+    rec.lang='en-US'; rec.interimResults=false; rec.maxAlternatives=1;
+    toast('Listening… speak your answer.');
+    rec.onresult = (e)=>{
+      const text = e.results[0][0].transcript;
+      entry.freeform = (entry.freeform ? entry.freeform+' ' : '') + text;
+      box.value = entry.freeform;
+      document.getElementById('charcount').textContent = entry.freeform.length;
+      autoCheckKeywords(entry); refreshSummary(entry); saveCurrentDraft(); render();
+    };
+    rec.onerror = ()=> toast("Couldn't capture audio — try typing instead.");
+    rec.start();
+  }catch(err){ toast("Voice input isn't available right now — type your answer instead."); }
+}
+
+async function saveSession(){
+  const session = {
+    id: 's_'+Date.now(), startedAt: state.startedAt, completedAt: new Date().toISOString(),
+    privacy: state.privacy, entries: state.sessionEntries,
+  };
+  store.sessions.unshift(session);
+  store.settings.defaultPrivacy = state.privacy;
+  saveStore(store);
+  clearDraft(); draftAvailable=false;
+
+  // Honor the privacy choice: "Keep private" means exactly that — nothing leaves this
+  // browser. Only anon/manager/team selections get sent to the shared backend, and
+  // "anon" strips the name before sending.
+  if(session.privacy !== 'private' && store.settings.backendUrl){
+    try{
+      await fetch(store.settings.backendUrl.replace(/\/$/,'') + '/api/sessions', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          ...session,
+          employeeName: session.privacy==='anon' ? 'Anonymous' : (store.settings.name||'Unknown'),
+        }),
+      });
+      toast('Session saved locally and sent to the shared backend.');
+    }catch(e){
+      toast('Saved locally, but could not reach the backend to share it.');
+    }
+  } else {
+    toast('Session saved to My Sessions.');
+  }
+
+  state = defaultState();
+  state.view='sessions';
+  render();
+}
+
+/* ============================= VIEW: SESSIONS ============================= */
+function renderSessionsView(){
+  if(!store.sessions.length){
+    return `<div class="card empty-state">${ICON.sessions.replace('width="16" height="16"','width="34" height="34"')}
+      <div style="font-weight:700;margin-bottom:4px;">No sessions yet</div>
+      <div>Complete an interview to see your captured process drafts here.</div>
+      <div style="margin-top:16px;"><button class="btn btn-primary" id="goInterview">Start an interview ${ICON.arrow}</button></div>
+    </div>`;
+  }
+  return `<div class="page-title">My Sessions</div>
+    <div class="page-sub">${store.sessions.length} session${store.sessions.length===1?'':'s'} captured</div>
+    ${store.sessions.map((s,i)=>sessionCard(s,i)).join('')}`;
+}
+function sessionCard(s, i){
+  const date = new Date(s.completedAt);
+  const answered = s.entries.filter(e=>!e.skipped).length;
+  const privacyLabel = {private:'Kept private', anon:'Shared anonymously', manager:'Shared with manager', team:'In team knowledge base'}[s.privacy] || 'Private';
+  return `<div class="session-card">
+    <div class="session-card-top">
+      <div><div class="session-date">${date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})} · ${date.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</div>
+      <div class="session-meta">${answered} of ${s.entries.length} questions answered</div></div>
+      <div class="badge-privacy">${privacyLabel}</div>
+    </div>
+    <div class="session-actions">
+      <button class="btn btn-outline" data-toggle="${i}">View details</button>
+      <button class="btn btn-danger" data-del="${i}">${ICON.trash} Delete</button>
+    </div>
+    <div class="session-detail" id="detail-${i}" style="display:none;">
+      ${s.entries.map(e=>`<div class="recap-item"><div class="recap-q">${escapeHtml(e.prompt || e.situation)}</div><div class="recap-s">${e.skipped?'<i>Skipped</i>':escapeHtml(e.summary)}</div></div>`).join('')}
+    </div>
+  </div>`;
+}
+function wireSessionsView(){
+  const go=document.getElementById('goInterview');
+  if(go) go.addEventListener('click', ()=>{ state.view='interview'; render(); });
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.addEventListener('click', ()=>{
+    const i=b.getAttribute('data-toggle'); const d=document.getElementById('detail-'+i);
+    d.style.display = d.style.display==='none' ? 'block' : 'none';
+  }));
+  document.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+    const i=+b.getAttribute('data-del');
+    if(!confirm('Delete this session? This can\'t be undone.')) return;
+    store.sessions.splice(i,1); saveStore(store); render();
+  }));
+}
+
+/* ============================= VIEW: KNOWLEDGE ============================= */
+function renderKnowledgeView(){
+  const allEntries = store.sessions.flatMap(s=>s.entries.map(e=>({...e, sessionDate:s.completedAt})));
+  if(!allEntries.length){
+    return `<div class="card empty-state">${ICON.knowledge.replace('width="16" height="16"','width="34" height="34"')}
+      <div style="font-weight:700;margin-bottom:4px;">No knowledge captured yet</div>
+      <div>Once you complete sessions, your consolidated process notes and checklist show up here.</div></div>`;
+  }
+  const interview = allEntries.filter(e=>e.type==='interview' && !e.skipped);
+  const scenario = allEntries.filter(e=>e.type==='scenario' && !e.skipped);
+  const checklistSet=new Map();
+  allEntries.forEach(e=>e.checklist.filter(c=>c.checked).forEach(c=>checklistSet.set(c.label,true)));
+
+  return `<div class="page-title">My Knowledge</div>
+    <div class="page-sub">Everything you've captured across ${store.sessions.length} session${store.sessions.length===1?'':'s'}, in one place.</div>
+    <div class="card">
+      <h3>${ICON.download.replace('width="13" height="13"','width="15" height="15"')} Export</h3>
+      <div class="info-sub" style="margin-bottom:10px;">Download everything as a plain text file.</div>
+      <button class="btn btn-outline" id="exportBtn">${ICON.download} Export as text</button>
+    </div>
+    <div class="card">
+      <h3>Process draft (${interview.length})</h3>
+      ${interview.map(e=>`<div class="recap-item"><div class="recap-q">${escapeHtml(e.prompt)}</div><div class="recap-s">${escapeHtml(e.summary)}</div></div>`).join('') || '<div class="recap-s">None yet.</div>'}
+    </div>
+    <div class="card">
+      <h3>Consolidated checklist (${checklistSet.size})</h3>
+      <div class="recap-checklist">${[...checklistSet.keys()].map(l=>`<span class="recap-chip">${escapeHtml(l)}</span>`).join('') || '<span class="recap-s">None yet.</span>'}</div>
+    </div>
+    <div class="card">
+      <h3>Scenario notes (${scenario.length})</h3>
+      ${scenario.map(e=>`<div class="recap-item"><div class="recap-q">${escapeHtml(e.situation)}</div><div class="recap-s">${escapeHtml(e.summary)}</div></div>`).join('') || '<div class="recap-s">None yet.</div>'}
+    </div>`;
+}
+function wireKnowledgeView(){
+  const exp=document.getElementById('exportBtn');
+  if(!exp) return;
+  exp.addEventListener('click', ()=>{
+    const allEntries = store.sessions.flatMap(s=>s.entries);
+    let text = `SALES PLAYBOOK — ${store.settings.name||'Employee'}\nExported ${new Date().toLocaleString()}\n\n`;
+    text += '=== PROCESS DRAFT ===\n';
+    allEntries.filter(e=>e.type==='interview'&&!e.skipped).forEach(e=>{ text+=`\nQ: ${e.prompt}\nA: ${e.summary}\n`; });
+    text += '\n=== CHECKLIST ===\n';
+    const set=new Map(); allEntries.forEach(e=>e.checklist.filter(c=>c.checked).forEach(c=>set.set(c.label,true)));
+    [...set.keys()].forEach(l=>text+=`- ${l}\n`);
+    text += '\n=== SCENARIO NOTES ===\n';
+    allEntries.filter(e=>e.type==='scenario'&&!e.skipped).forEach(e=>{ text+=`\nSituation: ${e.situation}\nResponse: ${e.summary}\n`; });
+    const blob = new Blob([text], {type:'text/plain'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download = 'sales-playbook-'+(store.settings.name||'export').toLowerCase().replace(/\s+/g,'-')+'.txt';
+    a.click();
+  });
+}
+
+/* ============================= VIEW: TEAM RESULTS =============================
+   Reads every employee's saved sessions from the backend (not localStorage) — this is
+   the view that makes results visible to Max instead of stuck in each person's browser.
+   Requires Backend URL + Admin Token to be set in Settings first. */
+async function renderTeamView(){
+  const main=document.getElementById('main');
+  if(!store.settings.backendUrl){
+    main.innerHTML = `<div class="card empty-state">${ICON.knowledge.replace('width="16" height="16"','width="34" height="34"')}
+      <div style="font-weight:700;margin-bottom:4px;">No backend connected yet</div>
+      <div>Set a Backend URL in Settings to see everyone's answers in one place, instead of just what's saved on this browser.</div>
+      <div style="margin-top:16px;"><button class="btn btn-primary" id="goSettingsFromTeam">Go to Settings ${ICON.arrow}</button></div>
+    </div>`;
+    document.getElementById('goSettingsFromTeam').addEventListener('click', ()=>{ state.view='settings'; render(); });
+    return;
+  }
+  main.innerHTML = `<div class="card"><div class="page-sub">Loading team results…</div></div>`;
+  try{
+    const res = await fetch(store.settings.backendUrl.replace(/\/$/,'') + '/api/sessions', {
+      headers:{'x-admin-token': store.settings.adminToken||''},
+    });
+    const data = await res.json();
+    if(!res.ok || !data.ok){
+      main.innerHTML = `<div class="card empty-state"><div style="font-weight:700;margin-bottom:4px;">Couldn't load team results</div>
+        <div>${escapeHtml(data.error || ('HTTP '+res.status))}</div>
+        <div style="margin-top:6px;">Check the Admin Token in Settings matches what's configured on the server.</div></div>`;
+      return;
+    }
+    const sessions = data.sessions || [];
+    if(!sessions.length){
+      main.innerHTML = `<div class="card empty-state"><div style="font-weight:700;margin-bottom:4px;">No sessions saved yet</div>
+        <div>Once employees complete interviews, their answers will show up here.</div></div>`;
+      return;
+    }
+    main.innerHTML = `<div class="page-title">Team Results</div>
+      <div class="page-sub">${sessions.length} session${sessions.length===1?'':'s'} from the team, pulled live from the backend.</div>
+      ${sessions.map((s,i)=>`
+        <div class="session-card">
+          <div class="session-card-top">
+            <div><div class="session-date">${escapeHtml(s.employeeName||'Unknown')} — ${new Date(s.completedAt).toLocaleDateString()}</div>
+            <div class="session-meta">${(s.entries||[]).filter(e=>!e.skipped).length} of ${(s.entries||[]).length} questions answered</div></div>
+            <div class="badge-privacy">${escapeHtml(s.privacy||'private')}</div>
+          </div>
+          <div class="session-actions"><button class="btn btn-outline" data-team-toggle="${i}">View details</button></div>
+          <div class="session-detail" id="team-detail-${i}" style="display:none;">
+            ${(s.entries||[]).map(e=>`<div class="recap-item"><div class="recap-q">${e.stage?escapeHtml(e.stage)+' — ':''}${escapeHtml(e.prompt||e.situation||'')}</div><div class="recap-s">${e.skipped?'<i>Skipped</i>':escapeHtml(e.summary||'')}</div></div>`).join('')}
+          </div>
+        </div>`).join('')}`;
+    document.querySelectorAll('[data-team-toggle]').forEach(b=>b.addEventListener('click', ()=>{
+      const i=b.getAttribute('data-team-toggle'); const d=document.getElementById('team-detail-'+i);
+      d.style.display = d.style.display==='none' ? 'block' : 'none';
+    }));
+  }catch(e){
+    main.innerHTML = `<div class="card empty-state"><div style="font-weight:700;margin-bottom:4px;">Couldn't reach the backend</div>
+      <div>${escapeHtml(String(e.message||e))}</div></div>`;
+  }
+}
+
+/* ============================= VIEW: SETTINGS ============================= */
+function renderSettingsView(){
+  return `<div class="page-title">Settings</div>
+    <div class="page-sub">Local to this browser — nothing here is sent anywhere.</div>
+    <div class="card">
+      <div class="settings-row">
+        <label>Display name</label>
+        <input type="text" id="nameInput" value="${escapeHtml(store.settings.name||'')}" placeholder="Your name">
+      </div>
+      <div class="settings-row">
+        <label>Default privacy for new sessions</label>
+        <select id="privacySelect">
+          <option value="private" ${store.settings.defaultPrivacy==='private'?'selected':''}>Keep private</option>
+          <option value="anon" ${store.settings.defaultPrivacy==='anon'?'selected':''}>Share anonymously</option>
+          <option value="manager" ${store.settings.defaultPrivacy==='manager'?'selected':''}>Share with manager</option>
+          <option value="team" ${store.settings.defaultPrivacy==='team'?'selected':''}>Add to team knowledge base</option>
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Backend &amp; adaptive questions</h3>
+      <div class="info-sub" style="margin-bottom:12px;">Connects this tool to the shared backend so sessions are saved centrally and (once turned on) follow-up questions are generated live instead of scripted.</div>
+      <div class="settings-row">
+        <label>Backend URL</label>
+        <input type="text" id="backendUrlInput" value="${escapeHtml(store.settings.backendUrl||'')}" placeholder="https://your-app.onrender.com">
+      </div>
+      <div class="settings-row">
+        <label>Admin token (for Team Results)</label>
+        <input type="text" id="adminTokenInput" value="${escapeHtml(store.settings.adminToken||'')}" placeholder="Matches ADMIN_TOKEN on the server">
+      </div>
+      <label class="radio-row" style="max-width:420px;">
+        <input type="checkbox" id="adaptiveToggle" ${store.settings.adaptiveMode?'checked':''}>
+        <div><div class="radio-title">Use adaptive questions</div>
+        <div class="radio-sub">Off = scripted questions (works with no backend). On = each question is generated live by the model based on prior answers.</div></div>
+      </label>
+    </div>
+    <div class="card">
+      <h3>Data</h3>
+      <div class="info-sub" style="margin-bottom:12px;">${store.sessions.length} session${store.sessions.length===1?'':'s'} stored in this browser's local storage.</div>
+      <button class="btn btn-danger" id="clearBtn">${ICON.trash} Clear all data</button>
+    </div>`;
+}
+function wireSettingsView(){
+  document.getElementById('nameInput').addEventListener('input', e=>{
+    store.settings.name = e.target.value; saveStore(store);
+    document.getElementById('avatarBadge').textContent = (e.target.value||'R').trim().charAt(0).toUpperCase() || 'R';
+  });
+  document.getElementById('privacySelect').addEventListener('change', e=>{
+    store.settings.defaultPrivacy = e.target.value; saveStore(store);
+  });
+  document.getElementById('backendUrlInput').addEventListener('input', e=>{
+    store.settings.backendUrl = e.target.value.trim(); saveStore(store);
+  });
+  document.getElementById('adminTokenInput').addEventListener('input', e=>{
+    store.settings.adminToken = e.target.value.trim(); saveStore(store);
+  });
+  document.getElementById('adaptiveToggle').addEventListener('change', e=>{
+    store.settings.adaptiveMode = e.target.checked; saveStore(store);
+    if(e.target.checked && !store.settings.backendUrl){
+      toast('Set a Backend URL above for adaptive questions to actually work.');
+    }
+  });
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    if(!confirm('This deletes all saved sessions and settings from this browser. Continue?')) return;
+    localStorage.removeItem(STORE_KEY); localStorage.removeItem(DRAFT_KEY);
+    store = loadStore(); draftAvailable=false; state=defaultState();
+    toast('All data cleared.'); render();
+  });
+}
+
+/* ============================= INIT ============================= */
+render();
+</script>
+</body>
+</html>
