@@ -214,7 +214,10 @@ app.post('/api/generate-question', async (req, res) => {
         model: GLM_MODEL,
         messages,
         temperature: 0.6,
-        max_tokens: 700,
+        max_tokens: 1800, // 700 was too tight — responses were getting cut off mid-JSON
+        thinking: { type: 'disabled' }, // this task doesn't need chain-of-thought; disabling
+        // both speeds up the response and stops reasoning tokens from eating into the
+        // budget meant for the actual JSON answer
       }),
     });
 

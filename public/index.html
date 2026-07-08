@@ -146,6 +146,8 @@
   .center-card{text-align:center;padding:44px 30px;}
   .center-card .big-ic{width:56px;height:56px;border-radius:50%;background:var(--teal-light);color:var(--teal-dark);
     display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+  .center-card .big-ic.spin{animation:spcs-spin 1.1s linear infinite;}
+  @keyframes spcs-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
   .center-card h2{margin:0 0 8px;font-size:19px;}
   .center-card p{margin:0 auto 20px;max-width:440px;color:var(--text-muted);font-size:14px;line-height:1.5;}
   .center-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
@@ -651,6 +653,7 @@ function defaultState(){
     startedAt: new Date().toISOString(),
     resumeBannerDismissed:false,
     lastSavedSessionId:null,
+    loadingNextQuestion:false,
   };
 }
 
@@ -803,7 +806,7 @@ function renderMain(){
       </div></div>`;
   }
   if(state.phase==='interview' || state.phase==='scenario'){
-    html += renderProgress() + renderQuestionCard();
+    html += renderProgress() + (state.loadingNextQuestion ? renderLoadingCard() : renderQuestionCard());
   } else if(state.phase==='transition'){
     html += renderTransitionCard();
   } else if(state.phase==='complete'){
@@ -893,6 +896,14 @@ function renderQuestionCard(){
   </div>`;
 }
 
+function renderLoadingCard(){
+  return `<div class="card center-card">
+    <div class="big-ic spin">${ICON.sparkle}</div>
+    <h2>Generating your next question…</h2>
+    <p>Building on what you just answered — this can take up to a minute.</p>
+  </div>`;
+}
+
 function renderTransitionCard(){
   return `<div class="card center-card">
     <div class="big-ic">${ICON.checkLg}</div>
@@ -952,6 +963,7 @@ function saveCurrentDraft(){
 }
 
 function wireInterviewView(){
+  if(state.loadingNextQuestion) return; // loading card has nothing to wire up
   const resumeBtn=document.getElementById('resumeBtn');
   if(resumeBtn){
     resumeBtn.addEventListener('click', ()=>{
@@ -1071,6 +1083,13 @@ function wireInterviewView(){
 }
 
 async function advanceQuestion(entry){
+  // Guard against double-submits: without this, clicking Continue again while a slow
+  // adaptive call is still in flight would push the same entry twice and fire a second
+  // concurrent request — which is exactly what produced duplicate entries in testing.
+  if(state.loadingNextQuestion) return;
+  state.loadingNextQuestion = true;
+  render(); // show the loading card immediately, before the (possibly slow) await below
+
   state.sessionEntries.push(entry);
   const list = state.phase==='interview' ? state.interviewQuestions : state.scenarioQuestions;
   const hasMoreScripted = state.qIndex+1 < list.length;
@@ -1079,6 +1098,7 @@ async function advanceQuestion(entry){
     state.qIndex += 1;
     q = await QuestionEngine.getQuestion(state.phase, state.qIndex);
   }
+  state.loadingNextQuestion = false;
   if(q){
     state.currentQuestionData = q;
     state.currentEntry = freshEntryFor(q);
