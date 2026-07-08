@@ -8,14 +8,14 @@ Small Express server with three jobs:
 
 Because the app is served *by* this backend, it auto-detects its own backend URL — employees using the hosted link don't need to touch Settings at all. (If you instead download `public/index.html` and open it locally as a file, it won't auto-detect anything — that's expected, and Settings → Backend URL still works manually in that case.)
 
-Storage is a plain JSON file (`data/sessions.json`), not a real database. That's a deliberate simplification to get something working on a free host today — see the caveat below, and the upgrade path once this is worth making permanent.
+Storage is a real hosted database (Turso) once you set it up per the "Persistent storage" section below — before that, it falls back to a plain JSON file (`data/sessions.json`) that Render can (and did, in practice) wipe on restart or redeploy. Set up Turso before trusting this with real employee data.
 
 ## Deploying to Render (free tier)
 
 Render's free web services don't need a credit card, which is why this is set up for Render first. Two caveats worth knowing before you rely on this:
 
 - **Cold starts.** Free services spin down after inactivity; the first request after a quiet period takes about a minute to wake back up. Fine for an internal tool, just don't be alarmed if the first load of the day is slow.
-- **Storage isn't guaranteed to persist.** Render's free tier doesn't include a persistent disk, so `data/sessions.json` can get wiped when the service restarts or redeploys. This is fine for testing the pipeline end-to-end, but before this holds real employee data long-term, it should move to a real hosted database (Supabase and Turso both have generous free tiers and would be a small change from here — ask if you want that swapped in once this is proven out).
+- **Storage isn't guaranteed to persist unless Turso is set up.** Render's free tier doesn't include a persistent disk, so without Turso configured, `data/sessions.json` can get wiped when the service restarts or redeploys — this actually happened once already. Set up Turso (below) before this holds anything you can't afford to lose.
 
 ### Steps
 
@@ -40,6 +40,7 @@ Render's free web services don't need a credit card, which is why this is set up
    - `GLM_MODEL` — `glm-4.6` is confirmed valid; can be changed to any model in Z.ai's current lineup
    - `GLM_BASE_URL` — `https://api.z.ai/api/paas/v4/chat/completions` (confirmed correct against Z.ai's own API docs)
    - `ADMIN_TOKEN` — make up any password-like string yourself; this protects the endpoint that lists everyone's answers
+   - `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` — see "Persistent storage" below. Without these, saved sessions can be wiped on the next redeploy.
 
 5. **Deploy.** Render gives you a URL like `https://sales-playbook-backend.onrender.com` — that URL is now the whole app. Send that link directly to employees; nothing to download or unzip.
 
@@ -47,6 +48,23 @@ Render's free web services don't need a credit card, which is why this is set up
    - Note: `?admin=1` is just a UX convenience to keep the everyday screen uncluttered, not real security — the actual protection is the `ADMIN_TOKEN` check on the server. Don't rely on the hidden URL alone to keep data private.
 
 7. Adaptive questions are on by default now — no toggle to flip. If GLM is ever down or the account hits a billing issue, it silently falls back to the standard scripted questions, so employees are never blocked.
+
+## Persistent storage (Turso) — do this before trusting this with real data
+
+Without this, session data lives in a JSON file on Render's disk, which is not guaranteed to survive a restart or redeploy (this already happened once). Turso is a hosted SQLite-compatible database with a generous free tier and no credit card required. Setup is entirely through their web dashboard — no command line needed.
+
+1. Go to **turso.tech** and sign up (GitHub or Google login both work).
+2. In the dashboard, **create a new database** — any name is fine, e.g. `sales-playbook`. Pick the region closest to you/Render.
+3. Once created, open the database and find the **Connect** (or **Settings**) tab. You need two values from there:
+   - The **database URL** — starts with `libsql://...`. This is `TURSO_DATABASE_URL`.
+   - An **auth token** — the dashboard has a button to generate one (sometimes labeled "Create Token" or similar). This is `TURSO_AUTH_TOKEN`. Treat it like a password — don't share it or commit it to GitHub.
+4. In Render, go to your service → **Environment**, and add both:
+   - `TURSO_DATABASE_URL` = the `libsql://...` URL
+   - `TURSO_AUTH_TOKEN` = the token you generated
+5. Save — Render will redeploy automatically. Check the deploy logs (or `/health`) after it comes back up; the server logs `Session storage: Turso (persistent)` on startup once it's picked up correctly. If those two variables aren't set, it logs a warning instead and keeps using the local file (same old risk).
+6. The very first session saved after this creates the table automatically — nothing else to configure.
+
+Once this is live, sessions survive redeploys, restarts, and Render spinning the service down for inactivity — the only way to lose them is deleting the Turso database itself.
 
 ### Updating the deployed app later
 

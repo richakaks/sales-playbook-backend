@@ -13,10 +13,13 @@
  *   3. /api/sessions — saves and lists completed interview sessions, so answers from
  *      every employee land in one place instead of being stuck in each person's browser.
  *
- * Storage is a plain JSON file (data/sessions.json), not a real database. That's a
- * deliberate simplification for a free-tier prototype — see README.md for the caveat
- * about Render's free tier not guaranteeing disk persistence across restarts, and the
- * upgrade path (Supabase/Turso) once this is proven out.
+ * Storage: a real hosted database (Turso/libSQL) when TURSO_DATABASE_URL is configured —
+ * see README.md for setup. Session data used to live in a plain JSON file on Render's
+ * disk, which Render's free tier does not guarantee survives a restart or redeploy (this
+ * bit us in practice — a redeploy wiped saved sessions). If Turso isn't configured yet,
+ * this falls back to that same JSON file purely so local development still works without
+ * requiring a database account — that fallback carries the same data-loss risk and should
+ * not be relied on for anything real.
  */
 
 require('dotenv').config();
@@ -36,15 +39,40 @@ const GLM_MODEL = process.env.GLM_MODEL || 'glm-4.6'; // placeholder — confirm
 const GLM_BASE_URL = process.env.GLM_BASE_URL || 'https://api.z.ai/api/paas/v4/chat/completions';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
+const TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL || '';
+const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN || '';
+const USE_TURSO = Boolean(TURSO_DATABASE_URL);
+
+/* ---------------------------------------------------------------------- */
+/* Storage: Turso (real, persistent) when configured, JSON file fallback  */
+/* ---------------------------------------------------------------------- */
+let tursoClient = null;
+let tursoReady = null; // promise, resolves once the table exists
+if (USE_TURSO) {
+  const { createClient } = require('@libsql/client');
+  tursoClient = createClient({ url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN });
+  tursoReady = tursoClient.execute(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      employeeName TEXT,
+      startedAt TEXT,
+      completedAt TEXT,
+      privacy TEXT,
+      entries TEXT,
+      receivedAt TEXT
+    )
+  `);
+}
+
 const DATA_DIR = path.join(__dirname, 'data');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 
-function ensureStore() {
+function ensureFileStore() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(SESSIONS_FILE)) fs.writeFileSync(SESSIONS_FILE, '[]', 'utf8');
 }
-function readSessions() {
-  ensureStore();
+function readSessionsFromFile() {
+  ensureFileStore();
   try {
     return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
   } catch (e) {
@@ -52,9 +80,54 @@ function readSessions() {
     return [];
   }
 }
-function writeSessions(sessions) {
-  ensureStore();
+function writeSessionsToFile(sessions) {
+  ensureFileStore();
   fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
+}
+
+// Unified storage interface — everything below this point calls these, never the
+// file/Turso helpers directly, so the rest of the app doesn't care which is active.
+async function readSessions() {
+  if (USE_TURSO) {
+    await tursoReady;
+    const result = await tursoClient.execute('SELECT * FROM sessions ORDER BY receivedAt DESC');
+    return result.rows.map(row => ({
+      id: row.id,
+      employeeName: row.employeeName,
+      startedAt: row.startedAt,
+      completedAt: row.completedAt,
+      privacy: row.privacy,
+      entries: JSON.parse(row.entries || '[]'),
+      receivedAt: row.receivedAt,
+    }));
+  }
+  return readSessionsFromFile();
+}
+async function addSession(record) {
+  if (USE_TURSO) {
+    await tursoReady;
+    await tursoClient.execute({
+      sql: `INSERT INTO sessions (id, employeeName, startedAt, completedAt, privacy, entries, receivedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        record.id, record.employeeName, record.startedAt, record.completedAt,
+        record.privacy, JSON.stringify(record.entries), record.receivedAt,
+      ],
+    });
+    return;
+  }
+  const sessions = readSessionsFromFile();
+  sessions.unshift(record);
+  writeSessionsToFile(sessions);
+}
+async function deleteSession(id) {
+  if (USE_TURSO) {
+    await tursoReady;
+    await tursoClient.execute({ sql: 'DELETE FROM sessions WHERE id = ?', args: [id] });
+    return;
+  }
+  const sessions = readSessionsFromFile().filter(s => s.id !== id);
+  writeSessionsToFile(sessions);
 }
 
 function requireAdmin(req, res, next) {
@@ -78,12 +151,11 @@ app.get('/health', (req, res) => {
 /* ---------------------------------------------------------------------- */
 /* Sessions: save + list                                                  */
 /* ---------------------------------------------------------------------- */
-app.post('/api/sessions', (req, res) => {
+app.post('/api/sessions', async (req, res) => {
   const session = req.body;
   if (!session || !Array.isArray(session.entries)) {
     return res.status(400).json({ ok: false, error: 'Expected a session object with an entries array.' });
   }
-  const sessions = readSessions();
   const record = {
     id: session.id || ('s_' + Date.now()),
     employeeName: session.employeeName || 'Unknown',
@@ -93,20 +165,33 @@ app.post('/api/sessions', (req, res) => {
     entries: session.entries,
     receivedAt: new Date().toISOString(),
   };
-  sessions.unshift(record);
-  writeSessions(sessions);
-  res.json({ ok: true, session: record });
+  try {
+    await addSession(record);
+    res.json({ ok: true, session: record });
+  } catch (e) {
+    console.error('Failed to save session:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to save session to storage.', detail: String(e.message || e) });
+  }
 });
 
 // Admin-only: see every employee's saved sessions in one place.
-app.get('/api/sessions', requireAdmin, (req, res) => {
-  res.json({ ok: true, sessions: readSessions() });
+app.get('/api/sessions', requireAdmin, async (req, res) => {
+  try {
+    res.json({ ok: true, sessions: await readSessions() });
+  } catch (e) {
+    console.error('Failed to read sessions:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to read sessions from storage.', detail: String(e.message || e) });
+  }
 });
 
-app.delete('/api/sessions/:id', requireAdmin, (req, res) => {
-  const sessions = readSessions().filter(s => s.id !== req.params.id);
-  writeSessions(sessions);
-  res.json({ ok: true });
+app.delete('/api/sessions/:id', requireAdmin, async (req, res) => {
+  try {
+    await deleteSession(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Failed to delete session:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to delete session from storage.', detail: String(e.message || e) });
+  }
 });
 
 /* ---------------------------------------------------------------------- */
@@ -254,4 +339,5 @@ app.listen(PORT, () => {
   console.log(`Sales Playbook backend listening on port ${PORT}`);
   console.log(`GLM model configured as: ${GLM_MODEL} (confirm this is correct with First before relying on it)`);
   console.log(`Admin token set: ${ADMIN_TOKEN ? 'yes' : 'NO — /api/sessions reads will fail until ADMIN_TOKEN is set'}`);
+  console.log(`Session storage: ${USE_TURSO ? 'Turso (persistent)' : 'local JSON file (NOT persistent across Render restarts/redeploys — set TURSO_DATABASE_URL to fix this)'}`);
 });
