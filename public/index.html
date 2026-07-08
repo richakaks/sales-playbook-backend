@@ -626,6 +626,14 @@ if(!store.settings.backendUrl && location.protocol !== 'file:'){
   saveStore(store);
 }
 
+// Employees never need to see "Team Results" or backend/admin settings — that's a Max/manager
+// view. It's hidden by default and only shown when the page is opened with ?admin=1 in the URL
+// (e.g. https://your-app.onrender.com/?admin=1). This is a UX simplification, NOT a real
+// security boundary — the actual access control is server-side (ADMIN_TOKEN check in
+// server.js). Anyone with the admin token could still call the API directly; this just keeps
+// the everyday interview screen free of controls employees have no reason to touch.
+const IS_ADMIN = new URLSearchParams(location.search).get('admin') === '1';
+
 function freshEntryFor(q){
   const chips = q.chips || (q.type==='scenario' ? SCENARIO_CHIPS : []);
   const bank = q.checklist || (q.type==='scenario' ? SCENARIO_CHECKLIST : []);
@@ -740,7 +748,7 @@ function renderSidenav(){
     {key:'interview', label:'Interview', icon:ICON.interview},
     {key:'sessions', label:'My Sessions', icon:ICON.sessions},
     {key:'knowledge', label:'My Knowledge', icon:ICON.knowledge},
-    {key:'team', label:'Team Results', icon:ICON.knowledge},
+    ...(IS_ADMIN ? [{key:'team', label:'Team Results', icon:ICON.knowledge}] : []),
     {key:'settings', label:'Settings', icon:ICON.settings},
   ];
   const nav=document.getElementById('sidenav');
@@ -792,7 +800,9 @@ function renderMain(){
   const main=document.getElementById('main');
   if(state.view==='sessions'){ main.innerHTML = renderSessionsView(); wireSessionsView(); return; }
   if(state.view==='knowledge'){ main.innerHTML = renderKnowledgeView(); wireKnowledgeView(); return; }
-  if(state.view==='team'){ renderTeamView(); return; }
+  if(state.view==='team'){
+    if(!IS_ADMIN){ state.view='interview'; } else { renderTeamView(); return; }
+  }
   if(state.view==='settings'){ main.innerHTML = renderSettingsView(); wireSettingsView(); return; }
 
   // interview / scenario / transition / complete
@@ -1339,9 +1349,9 @@ function renderSettingsView(){
         </select>
       </div>
     </div>
-    <div class="card">
+    ${IS_ADMIN ? `<div class="card">
       <h3>Backend &amp; adaptive questions</h3>
-      <div class="info-sub" style="margin-bottom:12px;">Connects this tool to the shared backend so sessions are saved centrally and (once turned on) follow-up questions are generated live instead of scripted.</div>
+      <div class="info-sub" style="margin-bottom:12px;">Connects this tool to the shared backend so sessions are saved centrally and (once turned on) follow-up questions are generated live instead of scripted. This card only shows up in admin mode (?admin=1) — regular employees never see it.</div>
       <div class="settings-row">
         <label>Backend URL</label>
         <input type="text" id="backendUrlInput" value="${escapeHtml(store.settings.backendUrl||'')}" placeholder="https://your-app.onrender.com">
@@ -1355,7 +1365,7 @@ function renderSettingsView(){
         <div><div class="radio-title">Use adaptive questions</div>
         <div class="radio-sub">On by default whenever a backend is connected — each question is generated live from prior answers. If the backend or model is ever unavailable, it silently falls back to the standard question set, so nothing gets stuck. Turn this off only if you want to force the standard scripted set regardless.</div></div>
       </label>
-    </div>
+    </div>` : ''}
     <div class="card">
       <h3>Data</h3>
       <div class="info-sub" style="margin-bottom:12px;">${store.sessions.length} session${store.sessions.length===1?'':'s'} stored in this browser's local storage.</div>
@@ -1370,18 +1380,20 @@ function wireSettingsView(){
   document.getElementById('privacySelect').addEventListener('change', e=>{
     store.settings.defaultPrivacy = e.target.value; saveStore(store);
   });
-  document.getElementById('backendUrlInput').addEventListener('input', e=>{
-    store.settings.backendUrl = e.target.value.trim(); saveStore(store);
-  });
-  document.getElementById('adminTokenInput').addEventListener('input', e=>{
-    store.settings.adminToken = e.target.value.trim(); saveStore(store);
-  });
-  document.getElementById('adaptiveToggle').addEventListener('change', e=>{
-    store.settings.adaptiveMode = e.target.checked; saveStore(store);
-    if(e.target.checked && !store.settings.backendUrl){
-      toast('Set a Backend URL above for adaptive questions to actually work.');
-    }
-  });
+  if(IS_ADMIN){
+    document.getElementById('backendUrlInput').addEventListener('input', e=>{
+      store.settings.backendUrl = e.target.value.trim(); saveStore(store);
+    });
+    document.getElementById('adminTokenInput').addEventListener('input', e=>{
+      store.settings.adminToken = e.target.value.trim(); saveStore(store);
+    });
+    document.getElementById('adaptiveToggle').addEventListener('change', e=>{
+      store.settings.adaptiveMode = e.target.checked; saveStore(store);
+      if(e.target.checked && !store.settings.backendUrl){
+        toast('Set a Backend URL above for adaptive questions to actually work.');
+      }
+    });
+  }
   document.getElementById('clearBtn').addEventListener('click', ()=>{
     if(!confirm('This deletes all saved sessions and settings from this browser. Continue?')) return;
     localStorage.removeItem(STORE_KEY); localStorage.removeItem(DRAFT_KEY);

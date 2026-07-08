@@ -43,9 +43,10 @@ Render's free web services don't need a credit card, which is why this is set up
 
 5. **Deploy.** Render gives you a URL like `https://sales-playbook-backend.onrender.com` — that URL is now the whole app. Send that link directly to employees; nothing to download or unzip.
 
-6. **For Team Results** (Max seeing everyone's answers): open the app at that URL, go to Settings, and paste the `ADMIN_TOKEN` value into the Admin Token field — Backend URL fills itself in automatically since the page is served by the same backend.
+6. **For Team Results** (Max seeing everyone's answers): open the app with `?admin=1` on the end of the URL, e.g. `https://sales-playbook-backend.onrender.com/?admin=1`. This reveals a "Team Results" tab and a Settings card for Backend URL / Admin Token that regular employees never see (the plain link, with no `?admin=1`, hides all of that — employees only ever see Interview / My Sessions / My Knowledge / Settings-with-just-name-and-privacy). Paste the `ADMIN_TOKEN` value into the Admin Token field; Backend URL fills itself in automatically.
+   - Note: `?admin=1` is just a UX convenience to keep the everyday screen uncluttered, not real security — the actual protection is the `ADMIN_TOKEN` check on the server. Don't rely on the hidden URL alone to keep data private.
 
-7. Turn on "Use adaptive questions" once GLM account billing is resolved (currently blocked — see `../ADAPTIVE_QUESTIONS_SPEC.md`).
+7. Adaptive questions are on by default now — no toggle to flip. If GLM is ever down or the account hits a billing issue, it silently falls back to the standard scripted questions, so employees are never blocked.
 
 ### Updating the deployed app later
 
