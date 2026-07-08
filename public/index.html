@@ -602,11 +602,11 @@ function loadStore(){
     const raw=localStorage.getItem(STORE_KEY);
     if(raw){
       const parsed = JSON.parse(raw);
-      parsed.settings = Object.assign({name:'Rich', defaultPrivacy:'private', backendUrl:'', adaptiveMode:false, adminToken:''}, parsed.settings||{});
+      parsed.settings = Object.assign({name:'Rich', defaultPrivacy:'private', backendUrl:'', adaptiveMode:true, adminToken:''}, parsed.settings||{});
       return parsed;
     }
   }catch(e){}
-  return {settings:{name:'Rich', defaultPrivacy:'private', backendUrl:'', adaptiveMode:false, adminToken:''}, sessions:[]};
+  return {settings:{name:'Rich', defaultPrivacy:'private', backendUrl:'', adaptiveMode:true, adminToken:''}, sessions:[]};
 }
 function saveStore(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
 function loadDraft(){
@@ -1353,7 +1353,7 @@ function renderSettingsView(){
       <label class="radio-row" style="max-width:420px;">
         <input type="checkbox" id="adaptiveToggle" ${store.settings.adaptiveMode?'checked':''}>
         <div><div class="radio-title">Use adaptive questions</div>
-        <div class="radio-sub">Off = scripted questions (works with no backend). On = each question is generated live by the model based on prior answers.</div></div>
+        <div class="radio-sub">On by default whenever a backend is connected — each question is generated live from prior answers. If the backend or model is ever unavailable, it silently falls back to the standard question set, so nothing gets stuck. Turn this off only if you want to force the standard scripted set regardless.</div></div>
       </label>
     </div>
     <div class="card">
