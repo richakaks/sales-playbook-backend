@@ -1308,6 +1308,15 @@ async function renderTeamView(){
     }
     main.innerHTML = `<div class="page-title">Team Results</div>
       <div class="page-sub">${sessions.length} session${sessions.length===1?'':'s'} from the team, pulled live from the backend.</div>
+      <div class="card">
+        <h3>${ICON.download.replace('width="13" height="13"','width="15" height="15"')} Export &amp; playbook</h3>
+        <div class="info-sub" style="margin-bottom:10px;">Download the raw answers, or have the model synthesize everything into a written sales playbook.</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-outline" id="exportTeamBtn">${ICON.download} Export all as text</button>
+          <button class="btn btn-primary" id="generatePlaybookBtn">${ICON.sparkle} Generate playbook</button>
+        </div>
+        <div id="playbookStatus" style="margin-top:12px;"></div>
+      </div>
       ${sessions.map((s,i)=>`
         <div class="session-card">
           <div class="session-card-top">
@@ -1324,6 +1333,54 @@ async function renderTeamView(){
       const i=b.getAttribute('data-team-toggle'); const d=document.getElementById('team-detail-'+i);
       d.style.display = d.style.display==='none' ? 'block' : 'none';
     }));
+
+    document.getElementById('exportTeamBtn').addEventListener('click', ()=>{
+      let text = `SALES PLAYBOOK — TEAM RESULTS\nExported ${new Date().toLocaleString()}\n${sessions.length} session(s)\n\n`;
+      sessions.forEach(s=>{
+        text += `\n${'='.repeat(60)}\n${s.employeeName||'Unknown'} — ${new Date(s.completedAt).toLocaleString()} (${s.privacy||'private'})\n${'='.repeat(60)}\n`;
+        (s.entries||[]).forEach(e=>{
+          if(e.skipped){ text += `\n[${e.stage||'General'}] SKIPPED: ${e.prompt||e.situation||''}\n`; return; }
+          text += `\n[${e.stage||'General'}]\n`;
+          if(e.situation) text += `Situation: ${e.situation}\n`;
+          text += `Q: ${e.prompt||''}\nA: ${e.freeform||e.summary||''}\n`;
+        });
+      });
+      const blob = new Blob([text], {type:'text/plain'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download = 'sales-playbook-team-export-'+new Date().toISOString().slice(0,10)+'.txt';
+      a.click();
+    });
+
+    document.getElementById('generatePlaybookBtn').addEventListener('click', async ()=>{
+      const statusEl = document.getElementById('playbookStatus');
+      const btn = document.getElementById('generatePlaybookBtn');
+      btn.disabled = true;
+      statusEl.innerHTML = `<div class="info-sub">${ICON.sparkle} Synthesizing a playbook from ${sessions.length} session(s) — this can take up to a minute or two...</div>`;
+      try{
+        const res = await fetch(store.settings.backendUrl.replace(/\/$/,'') + '/api/generate-playbook', {
+          method:'POST', headers:{'Content-Type':'application/json','x-admin-token': store.settings.adminToken||''},
+          body: JSON.stringify({ persona: PERSONA, stages: REVENUE_JOURNEY_STAGES }),
+        });
+        const data = await res.json();
+        if(!res.ok || !data.ok){
+          statusEl.innerHTML = `<div class="info-sub" style="color:#B42318;">Couldn't generate the playbook: ${escapeHtml(data.error||('HTTP '+res.status))}</div>`;
+          btn.disabled = false;
+          return;
+        }
+        statusEl.innerHTML = `<div class="info-sub" style="color:#067647;">Playbook generated.</div>
+          <button class="btn btn-outline" id="downloadPlaybookBtn" style="margin-top:8px;">${ICON.download} Download playbook (.md)</button>
+          <div class="card" style="margin-top:12px; white-space:pre-wrap; font-family:ui-monospace,monospace; font-size:13px; max-height:500px; overflow:auto;">${escapeHtml(data.playbook)}</div>`;
+        document.getElementById('downloadPlaybookBtn').addEventListener('click', ()=>{
+          const blob = new Blob([data.playbook], {type:'text/markdown'});
+          const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+          a.download = 'sales-playbook-'+new Date().toISOString().slice(0,10)+'.md';
+          a.click();
+        });
+      }catch(e){
+        statusEl.innerHTML = `<div class="info-sub" style="color:#B42318;">Couldn't reach the backend: ${escapeHtml(String(e.message||e))}</div>`;
+      }
+      btn.disabled = false;
+    });
   }catch(e){
     main.innerHTML = `<div class="card empty-state"><div style="font-weight:700;margin-bottom:4px;">Couldn't reach the backend</div>
       <div>${escapeHtml(String(e.message||e))}</div></div>`;

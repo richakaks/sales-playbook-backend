@@ -93,3 +93,4 @@ Then check `http://localhost:3000/health` returns `{"ok":true,...}`.
 - `GET /api/sessions` — list every saved session (requires header `x-admin-token`)
 - `DELETE /api/sessions/:id` — remove a session (requires `x-admin-token`)
 - `POST /api/generate-question` — generates the next adaptive question from GLM given the persona, stage backlog, and transcript so far (see `../ADAPTIVE_QUESTIONS_SPEC.md`)
+- `POST /api/generate-playbook` — synthesizes every saved session into one written sales playbook document (Markdown), organized by stage with a "Judgment Calls" section built from scenario answers (requires `x-admin-token`). Surfaced in the app as the "Generate playbook" button on Team Results.

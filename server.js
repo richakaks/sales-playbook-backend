@@ -365,6 +365,128 @@ app.post('/api/generate-question', async (req, res) => {
   res.json({ ok: true, question: parsed });
 });
 
+/* ---------------------------------------------------------------------- */
+/* Playbook synthesis — combines every saved session into one written     */
+/* playbook document, instead of leaving Max to read raw transcripts one  */
+/* by one in Team Results.                                                */
+/* ---------------------------------------------------------------------- */
+const PLAYBOOK_SYSTEM_PROMPT = `You are helping turn a set of structured interviews with a company's salespeople into a written sales playbook — a document a new hire could actually learn their job from.
+
+The persona interviewed: {{PERSONA_LABEL}} — {{PERSONA_DESCRIPTION}}
+
+The process these interviews cover, roughly in order:
+{{STAGES}}
+
+You will be given transcripts from one or more employees. Each transcript has two parts: routine "how do you work" questions tied to a stage of the process above, and hypothetical judgment scenarios testing how the person handles pressure or ambiguity.
+
+Write a clear, well-organized sales playbook in Markdown that:
+- Is organized by stage of the process above (use the stages as section headers, skip any stage nobody actually answered questions about)
+- Synthesizes common patterns across employees into recommended practice — don't just list every person's answer separately, describe what the team actually does and call out the reasoning behind it
+- Explicitly flags where employees described handling the same situation differently, under a short "Needs alignment" note, so leadership can decide on one standard instead of the inconsistency staying invisible
+- Includes a "Judgment Calls" section near the end, built from the hypothetical scenario answers, capturing how experienced reps actually handle pressure situations (angry customers, stock shortages, pricing pressure, etc.) — written as guidance, not just a recap of what was said
+- Is concrete and specific — actual steps, actual phrases people use, actual thresholds (like "follow up twice over 3-4 days then mark cold") — not generic sales advice that could apply to any company
+- If only one employee's data is available, say so plainly at the top rather than writing as if this represents team-wide consensus
+
+Output only the playbook document in Markdown — no preamble, no meta-commentary about what you're about to do, no closing summary of your own process.`;
+
+function buildPlaybookSystemPrompt(persona, stages) {
+  return PLAYBOOK_SYSTEM_PROMPT
+    .replace('{{PERSONA_LABEL}}', persona?.label || 'Salesperson')
+    .replace('{{PERSONA_DESCRIPTION}}', persona?.description || '')
+    .replace('{{STAGES}}', (stages || []).map((s, i) => `${i + 1}. ${s}`).join('\n'));
+}
+
+function sessionsToTranscriptText(sessions) {
+  return sessions.map(s => {
+    const header = `--- Session: ${s.employeeName || 'Unknown'} (${s.completedAt ? new Date(s.completedAt).toLocaleDateString() : 'unknown date'}) ---`;
+    const body = (s.entries || [])
+      .filter(e => !e.skipped)
+      .map(e => {
+        const q = e.prompt || e.situation || '(unknown question)';
+        const a = e.freeform || e.summary || '(no answer given)';
+        const situationLine = e.situation ? `Situation: ${e.situation}\n` : '';
+        return `[${e.stage || 'General'}]\n${situationLine}Q: ${q}\nA: ${a}`;
+      })
+      .join('\n\n');
+    return `${header}\n${body}`;
+  }).join('\n\n');
+}
+
+// Same shape as callGlmForQuestion but for free-form long-document generation, not a
+// small structured JSON reply — no response_format constraint (we want prose/Markdown),
+// higher max_tokens (a real document, not one question), and a longer timeout since
+// synthesizing several sessions at once takes noticeably longer than one question.
+async function callGlmForPlaybook(messages) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
+  let glmRes;
+  try {
+    glmRes = await fetch(GLM_BASE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GLM_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GLM_MODEL,
+        messages,
+        temperature: 0.5,
+        max_tokens: 8000,
+      }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!glmRes.ok) {
+    const errText = await glmRes.text().catch(() => '');
+    throw new Error(`GLM API returned ${glmRes.status}: ${errText.slice(0, 500)}`);
+  }
+
+  const data = await glmRes.json();
+  const rawText = data?.choices?.[0]?.message?.content || '';
+  if (!rawText.trim()) {
+    throw new Error('Model returned an empty response.');
+  }
+  return rawText.trim();
+}
+
+app.post('/api/generate-playbook', requireAdmin, async (req, res) => {
+  if (!GLM_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'GLM_API_KEY is not configured on the server.' });
+  }
+  const { persona, stages } = req.body || {};
+
+  let sessions;
+  try {
+    sessions = await readSessions();
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Failed to read sessions from storage.', detail: String(e.message || e) });
+  }
+  if (!sessions.length) {
+    return res.status(400).json({ ok: false, error: 'No saved sessions to synthesize yet.' });
+  }
+
+  const messages = [
+    { role: 'system', content: buildPlaybookSystemPrompt(persona, stages) },
+    { role: 'user', content: `${sessionsToTranscriptText(sessions)}\n\nWrite the playbook now, based on the ${sessions.length} session(s) above.` },
+  ];
+
+  try {
+    let playbook;
+    try {
+      playbook = await callGlmForPlaybook(messages);
+    } catch (firstError) {
+      console.warn('generate-playbook: first attempt failed, retrying once:', firstError.message);
+      playbook = await callGlmForPlaybook(messages);
+    }
+    res.json({ ok: true, playbook, sessionCount: sessions.length });
+  } catch (e) {
+    res.status(502).json({ ok: false, error: 'Request to GLM failed after a retry.', detail: String(e.message || e) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Sales Playbook backend listening on port ${PORT}`);
   console.log(`GLM model configured as: ${GLM_MODEL} (confirm this is correct with First before relying on it)`);
