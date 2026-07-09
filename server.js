@@ -277,19 +277,16 @@ function extractJson(text) {
   }
 }
 
-app.post('/api/generate-question', async (req, res) => {
-  if (!GLM_API_KEY) {
-    return res.status(500).json({ ok: false, error: 'GLM_API_KEY is not configured on the server.' });
-  }
-  const { persona, stages, transcriptSoFar, phase } = req.body || {};
-
-  const messages = [
-    { role: 'system', content: buildSystemPrompt(persona, stages, phase) },
-    { role: 'user', content: `Transcript so far:\n\n${transcriptToText(transcriptSoFar)}\n\nGenerate the next ${phase === 'scenario' ? 'hypothetical scenario' : 'question'} now.` },
-  ];
-
+// One attempt at calling GLM and getting back a parsed question object (or a thrown
+// Error describing what went wrong). Pulled out on its own so generate-question can
+// retry it once before giving up — a single slow/flaky GLM response shouldn't force a
+// fallback to the scripted question if trying again would have worked.
+async function callGlmForQuestion(messages) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000); // don't hang forever — fail fast and retry/fallback instead
+  let glmRes;
   try {
-    const glmRes = await fetch(GLM_BASE_URL, {
+    glmRes = await fetch(GLM_BASE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -303,36 +300,69 @@ app.post('/api/generate-question', async (req, res) => {
         thinking: { type: 'disabled' }, // this task doesn't need chain-of-thought; disabling
         // both speeds up the response and stops reasoning tokens from eating into the
         // budget meant for the actual JSON answer
+        response_format: { type: 'json_object' }, // Z.ai's own JSON mode — a stronger
+        // guarantee of valid JSON than just asking for it in the prompt, which is all we
+        // were doing before. Should cut down on parse failures specifically.
       }),
+      signal: controller.signal,
     });
-
-    if (!glmRes.ok) {
-      const errText = await glmRes.text().catch(() => '');
-      return res.status(502).json({ ok: false, error: `GLM API returned ${glmRes.status}`, detail: errText.slice(0, 500) });
-    }
-
-    const data = await glmRes.json();
-    const rawText = data?.choices?.[0]?.message?.content || '';
-    const parsed = extractJson(rawText);
-
-    if (!parsed) {
-      return res.status(502).json({ ok: false, error: 'Could not parse a JSON question from the model response.', raw: rawText.slice(0, 500) });
-    }
-    if (parsed.done) {
-      return res.json({ ok: true, done: true });
-    }
-    if (!parsed.prompt) {
-      return res.status(502).json({ ok: false, error: 'Model response was missing a "prompt" field.', raw: parsed });
-    }
-    if (phase === 'scenario' && !parsed.situation) {
-      return res.status(502).json({ ok: false, error: 'Scenario response was missing a "situation" field.', raw: parsed });
-    }
-    parsed.type = phase === 'scenario' ? 'scenario' : 'interview';
-
-    res.json({ ok: true, question: parsed });
-  } catch (e) {
-    res.status(502).json({ ok: false, error: 'Request to GLM failed.', detail: String(e.message || e) });
+  } finally {
+    clearTimeout(timeout);
   }
+
+  if (!glmRes.ok) {
+    const errText = await glmRes.text().catch(() => '');
+    throw new Error(`GLM API returned ${glmRes.status}: ${errText.slice(0, 500)}`);
+  }
+
+  const data = await glmRes.json();
+  const rawText = data?.choices?.[0]?.message?.content || '';
+  const parsed = extractJson(rawText);
+  if (!parsed) {
+    throw new Error(`Could not parse a JSON question from the model response. Raw: ${rawText.slice(0, 500)}`);
+  }
+  return parsed;
+}
+
+app.post('/api/generate-question', async (req, res) => {
+  if (!GLM_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'GLM_API_KEY is not configured on the server.' });
+  }
+  const { persona, stages, transcriptSoFar, phase } = req.body || {};
+
+  const messages = [
+    { role: 'system', content: buildSystemPrompt(persona, stages, phase) },
+    { role: 'user', content: `Transcript so far:\n\n${transcriptToText(transcriptSoFar)}\n\nGenerate the next ${phase === 'scenario' ? 'hypothetical scenario' : 'question'} now.` },
+  ];
+
+  let parsed;
+  try {
+    try {
+      parsed = await callGlmForQuestion(messages);
+    } catch (firstError) {
+      // One retry — most GLM failures we've seen are transient (a slow response, an
+      // occasional malformed reply), not a systemic problem, so trying again before
+      // falling back to a scripted question meaningfully cuts down on unnecessary
+      // fallbacks without making anyone wait drastically longer.
+      console.warn('generate-question: first attempt failed, retrying once:', firstError.message);
+      parsed = await callGlmForQuestion(messages);
+    }
+  } catch (e) {
+    return res.status(502).json({ ok: false, error: 'Request to GLM failed after a retry.', detail: String(e.message || e) });
+  }
+
+  if (parsed.done) {
+    return res.json({ ok: true, done: true });
+  }
+  if (!parsed.prompt) {
+    return res.status(502).json({ ok: false, error: 'Model response was missing a "prompt" field.', raw: parsed });
+  }
+  if (phase === 'scenario' && !parsed.situation) {
+    return res.status(502).json({ ok: false, error: 'Scenario response was missing a "situation" field.', raw: parsed });
+  }
+  parsed.type = phase === 'scenario' ? 'scenario' : 'interview';
+
+  res.json({ ok: true, question: parsed });
 });
 
 app.listen(PORT, () => {
